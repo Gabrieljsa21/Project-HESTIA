@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Segredos (nunca commitar - sessão/chave da Steam)
+.env
+.env.*
+!.env.example
+
+# Cache de pesquisa (DDG) e dados gerados em runtime (estado real do usuário)
+cache/
+data/*.json
+
+# Editores / SO
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
