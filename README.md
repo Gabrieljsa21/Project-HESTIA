@@ -1,6 +1,6 @@
 # Project-HESTIA
 
-Assistente de Steam da G.A.I.A. - acompanha a wishlist do usuário (avisa
+Assistente de Steam da GAIA - acompanha a wishlist do usuário (avisa
 lançamento do dia, saída de Acesso Antecipado, jogo que virou grátis, DLC
 nova, lembretes antecipados), a página de atividade (compra/conquista/
 anúncio de amigos) e o progresso de conquistas de um jogo específico
