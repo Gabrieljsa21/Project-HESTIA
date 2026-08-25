@@ -1,4 +1,4 @@
-# Project-HESTIA
+# Project HESTIA
 
 Assistente de Steam da GAIA - acompanha a wishlist do usuário (avisa
 lançamento do dia, saída de Acesso Antecipado, jogo que virou grátis, DLC
@@ -35,7 +35,7 @@ uv pip install -e .
 python -m hestia.main
 ```
 
-Sem loop de manutenção próprio (diferente do Project-MOIRAI, que continua
+Sem loop de manutenção próprio (diferente do Project MOIRAI, que continua
 baixando/sincronizando sozinho mesmo com a GAIA fechada) - o HESTIA fica
 parado esperando requisição HTTP na porta 8770 (`hestia/api_bridge.py`).
 As 3 checagens (lançamentos, atividade, conquistas) só rodam quando

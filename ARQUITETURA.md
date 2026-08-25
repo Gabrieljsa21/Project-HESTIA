@@ -1,4 +1,4 @@
-# Arquitetura do Project-HESTIA
+# Arquitetura do Project HESTIA
 
 Extraído da GAIA em 2026-08-24 (ver `Project G.A.I.A/assistant/docs/TODO.md`
 -> "Arquitetura do ecossistema", item "Steam → Project HESTIA") - mesmo
