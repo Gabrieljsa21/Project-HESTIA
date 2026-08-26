@@ -246,7 +246,14 @@ def verificar_lancamentos(steamid=None):
                 eventos.append(f"🎮 {nome} (da sua wishlist) saiu do Acesso Antecipado - versão 1.0 lançada!\n{link_steam}")
             elif detalhes["coming_soon"] and detalhes["data"]:
                 dias_restantes = (detalhes["data"] - date.today()).days
-                ja_notificado = anterior.get("lembretes_enviados", [])
+                # 🔥 Reseta as faixas já avisadas se a DATA mudou desde a última checagem
+                # (achado real 2026-08-26, "My Party Is Grinding" - jogo adiado, mas o
+                # usuário nunca recebeu o aviso de "1 dia"/"lança hoje" da NOVA data)
+                # - sem isso, uma faixa marcada como enviada contra a data ANTIGA
+                # (antes do adiamento) continuava contando como "já avisado" pra sempre,
+                # mesmo a contagem regressiva reiniciando do zero pra data nova.
+                data_mudou = anterior.get("data") != data_iso
+                ja_notificado = [] if data_mudou else anterior.get("lembretes_enviados", [])
                 # 🔥 Marca TODAS as faixas já cruzadas de uma vez (não só a mais
                 # próxima) - se a distância já satisfaz duas faixas ao mesmo tempo (ex.:
                 # 5 dias satisfaz tanto "30 dias" quanto "7 dias", já que 5 <= 30 E 5 <=

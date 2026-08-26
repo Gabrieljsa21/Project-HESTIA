@@ -84,6 +84,32 @@ assistant/docs/CORRECOES.md`) antes mesmo do primeiro teste real funcionar
 sintoma). **Mesmo bug ainda existe no MOIRAI** - fora de escopo desta
 extração, registrado aqui só pra não esquecer.
 
+## Bug real encontrado em produção: lembrete ficava mudo pra sempre após adiamento
+
+2026-08-26, reportado pelo usuário: "esse My Party Is Grinding lança amanha, e
+n recebi anuncio hj". `verificar_lancamentos` (`hestia/core/lancamentos.py`)
+avisa em 3 faixas antes do lançamento (`BRACKETS_LEMBRETE_DIAS = [30, 7, 1]`
+dias restantes), guardando quais já foram avisadas em `lembretes_enviados`
+por appid, pra nunca repetir o mesmo aviso. Causa raiz: essa lista NUNCA era
+resetada quando a data de lançamento MUDAVA (jogo adiado) - uma faixa já
+"gasta" contra a data ANTIGA continuava contando como "já avisado" pra
+sempre, mesmo a contagem regressiva reiniciando do zero contra a data nova.
+Investigado com arqueologia de log real (`assistant/logs/2026-08-*.log`) -
+o jogo teve "Faltam 5 dia(s)" avisado corretamente em 21/08, mas nunca mais
+apareceu em log nenhum depois disso, apesar do estado local já mostrar as 3
+faixas como "enviadas" - só fazia sentido se essas faixas tivessem sido
+herdadas de um agendamento anterior à extração (antes de qualquer log
+disponível), congeladas desde então.
+
+Corrigido: `data_mudou = anterior.get("data") != data_iso` reseta
+`lembretes_enviados` pra `[]` sempre que a data muda, antes de calcular
+quais faixas cruzar. Validado simulando um adiamento com `unittest.mock`
+(jogo com as 3 faixas já gastas contra a data antiga, adiado 5 dias -
+corretamente voltou a avisar "Faltam 5 dia(s)" pra nova data, sem
+recalcular as faixas 30/7 que ainda não deveriam cruzar). Registro
+manualmente corrigido pro jogo real afetado (`data/lancamentos_estado.json`,
+não versionado - dado de produção, não código).
+
 ## Contrato HTTP (`hestia/api_bridge.py`, porta 8770)
 
 - `GET /lancamentos/verificar` - varre a wishlist inteira (minutos, não

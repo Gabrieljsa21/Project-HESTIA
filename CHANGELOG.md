@@ -22,6 +22,7 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
   dedicado "Lançamentos Steam" de verdade.
 
 ### Correções
+- **Lembrete de lançamento (30/7/1 dias antes) ficava mudo pra sempre depois de um jogo ser ADIADO** - achado real (2026-08-26, usuário: "esse My Party Is Grinding lança amanha, e n recebi anuncio hj") - `lembretes_enviados` (faixas já avisadas) nunca era resetado quando a data de lançamento mudava, então uma faixa já "gasta" contra a data ANTIGA continuava contando como "já avisado" mesmo a contagem regressiva reiniciando do zero pra data nova - o usuário nunca mais recebia aviso nenhum daquele jogo. Corrigido em `hestia/core/lancamentos.py::verificar_lancamentos` - reseta as faixas sempre que a data muda. Validado simulando um adiamento (jogo com [30,7,1] já gastos contra a data antiga corretamente voltou a avisar "Faltam 5 dia(s)" pra nova data).
 - **`load_dotenv()` nunca era chamado** - nenhuma variável do `.env` era
   carregada de verdade (achado testando os endpoints logo depois da
   extração, com as 4 credenciais de Steam já preenchidas no arquivo, e
