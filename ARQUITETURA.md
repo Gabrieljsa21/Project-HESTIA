@@ -110,6 +110,26 @@ recalcular as faixas 30/7 que ainda não deveriam cruzar). Registro
 manualmente corrigido pro jogo real afetado (`data/lancamentos_estado.json`,
 não versionado - dado de produção, não código).
 
+## Limitação conhecida (não é bug): data de lançamento pode errar por 1 dia
+
+Investigando o caso acima, o usuário trouxe print da própria loja da Steam
+mostrando "My Party Is Grinding" com lançamento em 27/ago (~12h de
+distância), enquanto a API que o HESTIA usa devolvia 26/ago pro MESMO jogo.
+Conferido na hora - o JSON bruto da `appdetails` só tem
+`{"coming_soon": true, "date": "26 ago. 2026"}`, uma STRING de data sem
+fuso horário nenhum, sem timestamp preciso. A página da loja usa um widget
+de contagem regressiva alimentado por um timestamp de verdade que essa API
+pública/sem chave não expõe - o campo de texto provavelmente reflete o dia
+num fuso de referência interno da Valve (Pacific, tipicamente), que pode
+cair no dia anterior comparado ao fuso do usuário dependendo da hora exata
+do lançamento.
+
+**Decisão do usuário quando perguntado (2026-08-26)**: manter só fontes
+OFICIAIS/SEM CHAVE (princípio já documentado abaixo em "Usa só APIs
+OFICIAIS") em vez de fazer scraping do HTML da loja pra pegar o timestamp
+preciso - aceita a margem de até 1 dia como limitação conhecida. Não
+implementar scraping aqui sem decisão nova do usuário.
+
 ## Contrato HTTP (`hestia/api_bridge.py`, porta 8770)
 
 - `GET /lancamentos/verificar` - varre a wishlist inteira (minutos, não

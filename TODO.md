@@ -25,3 +25,11 @@ no momento - próximos itens são melhorias, não pendências da extração:
 - **Sem interface própria (janela/bandeja)** - mesmo caso do MOIRAI, roda
   sem UI nenhuma. Só faria sentido se um dia alguém quiser gerenciar Steam
   sem a GAIA aberta - não é uma necessidade conhecida hoje.
+- **Data de lançamento pode errar por até 1 dia (limitação conhecida, não
+  bug)** - achado real 2026-08-26 (ver ARQUITETURA.md, "Limitação
+  conhecida"): a API oficial/sem chave da Steam só devolve uma STRING de
+  data, sem fuso horário nem timestamp preciso - a loja mostra a data já
+  convertida pro fuso do usuário via um widget que essa API não expõe.
+  Corrigir de verdade exigiria scraping do HTML da loja (foge do princípio
+  "só API oficial" já adotado aqui) - usuário decidiu manter como está por
+  ora, não implementar sem pedido novo.
