@@ -35,7 +35,19 @@ import hestia.integrations.gaia_webhook as gaia_webhook
 
 ARQUIVO_ESTADO = "data/lancamentos_estado.json"
 INTERVALO_ENTRE_CHAMADAS_SEGUNDOS = 1.5
-BRACKETS_LEMBRETE_DIAS = [30, 7, 1]
+# 🔥 0 incluído (2026-08-27, bug real confirmado em produção: "Resonance: A
+# Plague Tale Legacy" lançando hoje, coming_soon ainda True - dias_restantes
+# calculava 0 certinho, mas SEM bracket 0 a condição `0 <= dias_restantes <=
+# b` já tinha sido satisfeita pelo bracket 1 no dia anterior ("Faltam 1
+# dia(s)"), que marcava `1` como notificado - no dia do lançamento, todos os
+# brackets [30,7,1] já estavam consumidos e `cruzadas` ficava vazio, sem
+# gerar NENHUM aviso de "lança HOJE" mesmo com a checagem diária rodando
+# certinho todo dia. Usuário relatou o mesmo padrão pro SeaColony dias
+# antes: recebeu "Faltam 1 dia(s)" e nunca recebeu o aviso de lançamento no
+# dia seguinte. `0` como bracket PRÓPRIO garante que o dia do lançamento
+# sempre tem sua própria chance de disparar, independente do bracket `1`
+# já ter sido consumido no dia anterior.
+BRACKETS_LEMBRETE_DIAS = [30, 7, 1, 0]
 
 _MESES_PT = {
     "jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6,

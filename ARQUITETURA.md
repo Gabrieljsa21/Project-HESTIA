@@ -130,6 +130,46 @@ OFICIAIS") em vez de fazer scraping do HTML da loja pra pegar o timestamp
 preciso - aceita a margem de até 1 dia como limitação conhecida. Não
 implementar scraping aqui sem decisão nova do usuário.
 
+## Bug real encontrado em produção: aviso de "lança HOJE" nunca disparava
+
+2026-08-27, reportado pelo usuário: recebeu "Faltam 1 dia(s) pro lançamento
+de SeaColony" no dia 24, mas nunca recebeu o aviso de lançamento no dia
+seguinte; no mesmo dia, o Google Calendar mostrava 3 lançamentos, mas
+nenhuma notificação de voz/Discord chegou. Causa raiz: `BRACKETS_LEMBRETE_
+DIAS = [30, 7, 1]` não tinha um bracket pro dia `0` (dia do lançamento em
+si). A condição de cruzamento (`0 <= dias_restantes <= b`) fazia o bracket
+`1` já casar com `dias_restantes == 0` também (`0 <= 0 <= 1`) - só que, com
+a checagem diária rodando normalmente todo dia, o bracket `1` já tinha sido
+consumido no dia ANTERIOR (quando `dias_restantes` era `1`), então no dia
+do lançamento `cruzadas` ficava vazio (todos os brackets `[30,7,1]` já
+"gastos") e NENHUM evento era gerado - mesmo com `dias_restantes`
+calculando `0` corretamente. Reproduzido com dado real em produção:
+"Resonance: A Plague Tale Legacy" (lançamento 27/08, o mesmo dia do
+relato) com `coming_soon` ainda `True` e os 3 brackets já consumidos -
+`cruzadas` vazio confirmado por simulação direta contra o estado real.
+
+Esse bug é INDEPENDENTE do evento de "Hoje foi lançado" baseado na
+transição de `coming_soon` (`True` -> `False`, seção acima do fluxo
+principal) - aquele continua funcionando quando a Steam já atualizou a
+flag a tempo da checagem diária; este cobre o caso (comum) de a checagem
+rodar ANTES da flag mudar, quando só a DATA já indica que é hoje.
+
+Corrigido: `BRACKETS_LEMBRETE_DIAS = [30, 7, 1, 0]` - o dia do lançamento
+ganhou seu próprio bracket, que só é consumido no dia exato (`0 <=
+dias_restantes <= 0` só é verdadeiro quando `dias_restantes == 0`),
+independente do bracket `1` já ter disparado no dia anterior. Validado
+simulando a contagem completa (30 -> 0): cada bracket dispara exatamente
+uma vez, sem duplicar nem pular o dia 0. Sem suíte de testes automatizada
+neste repo (nenhuma existe ainda) - validado só por simulação direta e
+pelos dados reais de produção.
+
+**Limitação residual conhecida**: se a checagem diária for pulada
+EXATAMENTE no dia do lançamento (processo desligado, etc.) e a flag
+`coming_soon` também não tiver mudado até a próxima checagem, o aviso
+ainda pode ser perdido (`dias_restantes` já negativo não casa bracket
+nenhum). Não corrigido - janela bem mais estreita que o bug relatado
+(exige os dois problemas ao mesmo tempo), fora do escopo do relato atual.
+
 ## Contrato HTTP (`hestia/api_bridge.py`, porta 8770)
 
 - `GET /lancamentos/verificar` - varre a wishlist inteira (minutos, não
