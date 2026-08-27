@@ -5,6 +5,8 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-24 a 2026-08-27: Extração completa - lançamentos, atividade e conquistas da Steam (PRs #1 a #6)
+
 ### Novidades
 - **Repositório criado (extração completa, 2026-08-24)** - 3 módulos de
   Steam (lançamentos da wishlist, atividade de amigos, conquistas) movidos
