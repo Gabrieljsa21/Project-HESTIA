@@ -44,6 +44,14 @@ tag sob demanda (`<STEAM>`/`<LANCAMENTOS>`/`<CONQUISTAS:jogo>`/
 `<GUIA_CONQUISTA:jogo:conquista>`); sem a GAIA rodando, chame os
 endpoints manualmente.
 
+**Sem terminal aberto (2026-09-01)**: `iniciar_hestia_oculto.vbs` sobe o
+processo escondido via `pythonw.exe`, sem janela de console nenhuma - mesmo
+padrão do `iniciar_iris_oculto.vbs`/`iniciar_argus_oculto.vbs`. **Ainda sem
+redirecionamento de log pra arquivo** (diferente da GAIA/ERIS, que já
+espelham stdout/stderr - ver `_RedirecionadorLog` em `Project-ERIS/eris/
+main.py`) - rodando assim, qualquer `print()`/traceback é descartado no
+vazio; ver `TODO.md`.
+
 Variáveis de ambiente opcionais (`.env`, ver `.env.example`) - cada uma
 liga um módulo independente:
 - `STEAM_LOGIN_SECURE`/`STEAM_PERFIL_URL` - sessão logada da Steam, usada

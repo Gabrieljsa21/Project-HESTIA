@@ -5,6 +5,9 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+### Novidades
+- **`iniciar_hestia.bat`/`iniciar_hestia_oculto.vbs` (2026-09-01)** - roda o HESTIA escondido via `pythonw.exe`, sem console. Usado pelo item "HESTIA" da categoria "Projects" do IRIS (ver `Project-IRIS/ARQUITETURA.md`). Ver `README.md`.
+
 ## [0.1.0] - 2026-08-24 a 2026-08-27: Extração completa - lançamentos, atividade e conquistas da Steam (PRs #1 a #6)
 
 ### Novidades

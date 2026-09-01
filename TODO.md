@@ -25,6 +25,12 @@ no momento - próximos itens são melhorias, não pendências da extração:
 - **Sem interface própria (janela/bandeja)** - mesmo caso do MOIRAI, roda
   sem UI nenhuma. Só faria sentido se um dia alguém quiser gerenciar Steam
   sem a GAIA aberta - não é uma necessidade conhecida hoje.
+- **Log em disco quando rodando escondido (2026-09-01)** - `iniciar_hestia_
+  oculto.vbs` (novo) sobe o processo via `pythonw.exe`, que descarta
+  `print()`/traceback no vazio (sem console nenhum) - sem um
+  `_RedirecionadorLog` (mesmo padrão de `Project-ERIS/eris/main.py`), um
+  crash silencioso não deixa nenhum rastro. Não bloqueou a criação do
+  launcher, mas dificulta diagnosticar qualquer problema rodando assim.
 - **Data de lançamento pode errar por até 1 dia (limitação conhecida, não
   bug)** - achado real 2026-08-26 (ver ARQUITETURA.md, "Limitação
   conhecida"): a API oficial/sem chave da Steam só devolve uma STRING de
