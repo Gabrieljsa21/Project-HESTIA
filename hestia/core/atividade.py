@@ -12,10 +12,20 @@ GAIA pra começar (só `os.getenv` pras credenciais).
 Usa a sessão de login autenticada (STEAM_LOGIN_SECURE no .env) porque essa página é
 pessoal - a Steam não expõe atividade/wishlist de amigos por nenhuma API pública
 (decisão registrada na GAIA antes da extração, testado e confirmado a ausência).
-Raspagem de HTML é mais frágil que uma API oficial (quebra se a Steam mudar o layout,
-ou se a sessão expirar - sem alerta próprio pra isso ainda, só o erro genérico no
-log), mas é a única forma de cobrir tudo que aparece nessa página, incluindo wishlist
-de amigos.
+Raspagem de HTML é mais frágil que uma API oficial (quebra se a Steam mudar o layout),
+mas é a única forma de cobrir tudo que aparece nessa página, incluindo wishlist de
+amigos.
+
+Sessão expira sem aviso nenhum da própria Steam (achado real, 2026-09-01: o
+usuário simplesmente parou de receber notificação nenhuma, sem erro visível em
+lugar algum - `_buscar_html` devolvia `status 200` normal, só que era a TELA DE
+LOGIN, não o feed). `_validar_sessao`/`obter_status_sessao` (abaixo) detectam
+isso de verdade, e `renovar_sessao_via_navegador` tenta se autocurar pegando um
+cookie fresco direto do navegador que o usuário já usa no dia a dia (Edge/
+Chrome/Firefox via `browser_cookie3`) - nunca pede senha nem 2FA, só lê a
+sessão que o próprio navegador já guarda quando o usuário loga normalmente pela
+web. A GAIA (`run.py::_monitorar_steam_loop`) só avisa o usuário se essa
+autocura também falhar.
 """
 
 import os
@@ -23,9 +33,21 @@ import json
 import hashlib
 import secrets
 import requests
+import browser_cookie3
 from bs4 import BeautifulSoup
 
+from hestia.core import familia
+
 ARQUIVO_VISTOS = "data/atividade_vista.json"
+ARQUIVO_SESSAO_STATUS = "data/atividade_sessao_status.json"
+# 🔥 Só navegadores que já funcionam sem elevação/config extra nesse ambiente
+# (testado 2026-09-01: Brave pede admin, Firefox exige perfil configurado -
+# best-effort, cada um cai pro próximo em silêncio se não achar nada).
+_NAVEGADORES_SUPORTADOS = [
+    ("Edge", browser_cookie3.edge),
+    ("Chrome", browser_cookie3.chrome),
+    ("Firefox", browser_cookie3.firefox),
+]
 # 🔥 Resumo diário (2026-08-01, pedido do usuário: "essas atividades da steam podia
 # ser um relatório diário enviado 10h como os outros") - data persistida em DISCO,
 # mesmo padrão de lancamentos.py::obter/salvar_ultima_checagem_diaria - sem
@@ -98,7 +120,101 @@ def _buscar_html():
     )
     if resp.status_code != 200:
         return None
-    return resp.text
+    html = resp.text
+    _marcar_status_sessao(_validar_sessao(html))
+    return html
+
+
+# 🔥 1 falha isolada NÃO é prova de sessão expirada de verdade - a própria
+# raspagem já é conhecida por voltar vazia/errada ~1 em cada 3 tentativas
+# mesmo com sessão válida (ver docstring de `_SESSION_ID_FAKE` acima, achado
+# ANTES desta extração) - confirmado na prática (2026-09-01): um teste manual
+# isolado leu a tela de login, mas a checagem seguinte, com o MESMO cookie
+# (hash comparado, idêntico byte a byte), leu a sessão como válida. Exige
+# falhas SEGUIDAS (2 checagens de 20min = 40min de sinal consistente) antes
+# de declarar expiração de verdade - senão a autocura/aviso dispararia por
+# falso positivo boa parte do tempo.
+LIMITE_FALHAS_CONSECUTIVAS_SESSAO = 2
+
+
+def _validar_sessao(html):
+    """`g_steamID` é uma variável JS global que a Steam injeta em QUALQUER
+    página autenticada da Community, independente de idioma - ausência dela
+    é o sinal mais forte de "cookie expirado" (a página volta com `status
+    200` normal, só que é a TELA DE LOGIN, não o feed), mas não é 100%
+    confiável isolada (ver `LIMITE_FALHAS_CONSECUTIVAS_SESSAO` acima)."""
+    return "g_steamID" in html
+
+
+def _carregar_status_bruto():
+    if not os.path.exists(ARQUIVO_SESSAO_STATUS):
+        return {}
+    try:
+        with open(ARQUIVO_SESSAO_STATUS, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _marcar_status_sessao(valida_desta_tentativa):
+    if valida_desta_tentativa:
+        novo = {"valida": True, "falhas_consecutivas": 0}
+    else:
+        falhas = _carregar_status_bruto().get("falhas_consecutivas", 0) + 1
+        novo = {"valida": falhas < LIMITE_FALHAS_CONSECUTIVAS_SESSAO, "falhas_consecutivas": falhas}
+    os.makedirs(os.path.dirname(ARQUIVO_SESSAO_STATUS), exist_ok=True)
+    with open(ARQUIVO_SESSAO_STATUS, "w", encoding="utf-8") as f:
+        json.dump(novo, f)
+
+
+def obter_status_sessao():
+    """`{"valida": None}` = nenhuma checagem real rodou ainda; `True`/`False`
+    = já filtrado por `LIMITE_FALHAS_CONSECUTIVAS_SESSAO` (não é a leitura
+    crua da última tentativa isolada)."""
+    dados = _carregar_status_bruto()
+    return {"valida": dados.get("valida")} if dados else {"valida": None}
+
+
+def _atualizar_env(chave, valor):
+    """Atualiza o `.env` na hora (linha existente, ou nova no fim) - sobrevive
+    a reinício. O processo ATUAL já usa o valor novo direto de `os.environ`
+    (ver `renovar_sessao_via_navegador`), não depende de reler o arquivo."""
+    caminho = ".env"
+    linhas = []
+    if os.path.exists(caminho):
+        with open(caminho, "r", encoding="utf-8") as f:
+            linhas = f.readlines()
+    encontrada = False
+    for i, linha in enumerate(linhas):
+        if linha.strip().startswith(f"{chave}="):
+            linhas[i] = f"{chave}='{valor}'\n"
+            encontrada = True
+            break
+    if not encontrada:
+        linhas.append(f"{chave}='{valor}'\n")
+    with open(caminho, "w", encoding="utf-8") as f:
+        f.writelines(linhas)
+
+
+def renovar_sessao_via_navegador():
+    """Tenta pegar um `steamLoginSecure` fresco direto do navegador que o
+    usuário já usa no dia a dia - sem pedir senha nem 2FA a ninguém, só lê a
+    sessão que o próprio navegador já guarda quando ele loga normalmente pela
+    web (pedido do usuário, 2026-09-01: "n da p automatizar" + "gere algo p q
+    estando logando, eu ou a gaia consiga pegar facil oq precisa"). Atualiza o
+    processo atual (efeito imediato, sem reiniciar) E o `.env` (sobrevive a
+    reinício). Devolve `{"sucesso": bool, "origem": nome do navegador ou None}`."""
+    for nome, funcao in _NAVEGADORES_SUPORTADOS:
+        try:
+            jar = funcao(domain_name="steamcommunity.com")
+            valor = next((c.value for c in jar if c.name == "steamLoginSecure"), None)
+        except Exception:
+            continue
+        if valor:
+            os.environ["STEAM_LOGIN_SECURE"] = valor
+            _atualizar_env("STEAM_LOGIN_SECURE", valor)
+            return {"sucesso": True, "origem": nome}
+    return {"sucesso": False, "origem": None}
 
 
 def _extrair_eventos(html):
@@ -119,6 +235,11 @@ def _extrair_eventos(html):
       assim, só sem uma frase tão polida)."""
     soup = BeautifulSoup(html, "html.parser")
     eventos = []
+    # 🔥 accountids de "família" (2026-09-01, pedido do usuário: "quero receber
+    # principalmente qnd alguem da familia compra algo novo") - lido 1x por
+    # chamada, comparado por accountid (data-miniprofile), nunca por nome (que
+    # pode mudar). Ver hestia/core/familia.py.
+    familia_ids = familia.accountids_familia()
 
     for bloco in soup.select("div.blotter_gamepurchase"):
         autor_tag = bloco.select_one(".blotter_author_block a[data-miniprofile]")
@@ -129,6 +250,7 @@ def _extrair_eventos(html):
         eventos.append({
             "chave": _chave("compra", id_autor, jogo),
             "texto": f"{autor} comprou {jogo} na Steam.",
+            "familia": id_autor in familia_ids,
         })
 
     for bloco in soup.select("div.blotter_userstatus[id^='group_announcement']"):
@@ -151,6 +273,7 @@ def _extrair_eventos(html):
         eventos.append({
             "chave": _chave("anuncio", bloco.get("id")),
             "texto": texto,
+            "familia": False,  # anúncio é do jogo/grupo, não tem autor-amigo
         })
 
     for linha in soup.select("div.blotter_daily_rollup_line"):
@@ -165,6 +288,7 @@ def _extrair_eventos(html):
         eventos.append({
             "chave": _chave("rollup", id_autor, appid, texto_linha[:80]),
             "texto": texto_linha,
+            "familia": id_autor in familia_ids,
         })
 
     return eventos

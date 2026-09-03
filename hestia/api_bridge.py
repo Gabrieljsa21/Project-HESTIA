@@ -15,7 +15,7 @@ import json
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from hestia.core import atividade, lancamentos, conquistas
+from hestia.core import atividade, lancamentos, conquistas, familia
 
 LOCAL_API_HOST = "127.0.0.1"
 LOCAL_API_PORT = 8770
@@ -56,6 +56,8 @@ class _API(BaseHTTPRequestHandler):
             self._responder_json(atividade.obter_atividade_atual(limite))
         elif caminho == "/atividade/ultima_checagem_diaria":
             self._responder_json({"ultima_data": atividade.obter_ultima_checagem_diaria_resumo()})
+        elif caminho == "/atividade/sessao_valida":
+            self._responder_json(atividade.obter_status_sessao())
         elif caminho == "/lancamentos/verificar":
             self._responder_json(lancamentos.verificar_lancamentos())
         elif caminho == "/lancamentos/proximos":
@@ -71,6 +73,8 @@ class _API(BaseHTTPRequestHandler):
             jogo = (params.get("jogo") or [""])[0]
             conquista_pedida = (params.get("conquista") or [""])[0]
             self._responder_json(conquistas.buscar_guia_conquista(jogo, conquista_pedida))
+        elif caminho == "/familia":
+            self._responder_json(familia.listar_familia())
         else:
             self._responder_404()
 
@@ -82,6 +86,13 @@ class _API(BaseHTTPRequestHandler):
             self._responder_ok()
         elif caminho == "/lancamentos/ultima_checagem_diaria":
             lancamentos.salvar_ultima_checagem_diaria(_ler_corpo_json(self).get("data", ""))
+            self._responder_ok()
+        elif caminho == "/atividade/renovar_sessao":
+            self._responder_json(atividade.renovar_sessao_via_navegador())
+        elif caminho == "/familia":
+            self._responder_json(familia.adicionar_familia(_ler_corpo_json(self).get("perfil", "")))
+        elif caminho == "/familia/remover":
+            familia.remover_familia(_ler_corpo_json(self).get("accountid", ""))
             self._responder_ok()
         else:
             self._responder_404()
