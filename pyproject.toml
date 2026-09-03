@@ -9,6 +9,7 @@ dependencies = [
     "ddgs",
     "youtube-transcript-api",
     "python-dotenv",
+    "browser-cookie3>=0.19",
 ]
 
 [build-system]

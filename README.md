@@ -3,7 +3,8 @@
 Assistente de Steam da GAIA - acompanha a wishlist do usuário (avisa
 lançamento do dia, saída de Acesso Antecipado, jogo que virou grátis, DLC
 nova, lembretes antecipados), a página de atividade (compra/conquista/
-anúncio de amigos) e o progresso de conquistas de um jogo específico
+anúncio de amigos, com destaque configurável pra "família" - `hestia/core/
+familia.py`) e o progresso de conquistas de um jogo específico
 (incluindo busca de guia de "como destravar"). Processo próprio, **sem
 interface gráfica** - só uma ponte HTTP; quem decide QUANDO checar e O QUE
 FALAR sobre isso é sempre a [GAIA](../Project%20G.A.I.A) (assistente

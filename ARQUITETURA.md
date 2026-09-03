@@ -188,6 +188,80 @@ nenhum). Não corrigido - janela bem mais estreita que o bug relatado
 - `GET /guia_conquista?jogo=X&conquista=Y` - cadeia de fontes priorizadas
   (Steam Community Guides -> PowerPyx -> GameFAQs -> F95zone -> busca
   livre).
+- `GET /familia` - lista de família cadastrada (`{steamid64, accountid,
+  nome}` cada).
+- `POST /familia` (`{"perfil": "url ou vanity/steamid"}`) - resolve e
+  adiciona; devolve a entrada criada ou `{"erro": "..."}`.
+- `POST /familia/remover` (`{"accountid": "..."}`) - remove da lista.
+- `GET /atividade/sessao_valida` - `{"valida": true/false/null}` (`null` =
+  nenhuma checagem real rodou ainda).
+- `POST /atividade/renovar_sessao` - tenta pegar um cookie fresco do
+  navegador (ver seção abaixo); `{"sucesso": bool, "origem": navegador|null}`.
+
+## Detecção + autocura de sessão expirada (2026-09-01)
+
+Achado real: o usuário simplesmente parou de receber aviso nenhum de
+atividade de amigos, sem erro visível em lugar algum. Investigando,
+`_buscar_html` devolvia `status 200` normal, só que o HTML era a TELA DE
+LOGIN da própria Steam (`<title>Iniciar sessão</title>`), não o feed -
+`STEAM_LOGIN_SECURE` tinha expirado. Como esse cookie não tem refresh
+token oficial (só existe pegando um novo, fazendo login de verdade),
+perguntei ao usuário se dava pra automatizar - **decisão: não automatizar
+login com senha/2FA** (Valve ativamente dificulta isso com captcha/
+confirmação, e guardar senha no `.env` seria pior que guardar só um cookie
+de sessão), mas SIM automatizar a detecção e a extração do cookie de uma
+fonte que já existe: o navegador que o usuário já usa no dia a dia.
+
+- **Detecção**: `_validar_sessao(html)` checa a presença de `g_steamID`
+  (variável JS global que a Steam injeta em QUALQUER página autenticada da
+  Community, independente de idioma) - ausência dela é o sinal mais forte
+  de sessão morta, mas **não é confiável isolada**: a própria raspagem já
+  era conhecida por voltar vazia/errada ~1 em cada 3 tentativas mesmo com
+  sessão válida (ver docstring de `_SESSION_ID_FAKE`, achado antes desta
+  extração) - confirmado batendo de novo, na prática (2026-09-01): um teste
+  manual isolado leu a tela de login, mas a checagem seguinte, com o MESMO
+  cookie (comparado por hash, idêntico), leu a sessão como válida. Por isso
+  `_marcar_status_sessao` exige `LIMITE_FALHAS_CONSECUTIVAS_SESSAO = 2`
+  falhas SEGUIDAS (2 checagens de 20min = 40min de sinal consistente) antes
+  de reportar `valida: false` de verdade - 1 falha isolada não muda o status
+  reportado. Marcado a cada `_buscar_html` bem-sucedido
+  (`data/atividade_sessao_status.json`), sem gastar requisição extra.
+- **Autocura**: `renovar_sessao_via_navegador` usa `browser_cookie3` pra ler
+  o cookie `steamLoginSecure` direto do perfil já logado do usuário no
+  Edge/Chrome/Firefox (nessa ordem, cada um best-effort - Brave exige admin
+  nesse ambiente, Firefox exige perfil configurado, ambos ignorados em
+  silêncio se falharem) - nunca pede senha nem 2FA, só lê uma sessão que já
+  existe. Atualiza `os.environ` (efeito imediato no processo atual) E
+  reescreve a linha no `.env` (sobrevive a reinício).
+- **Quem decide avisar o usuário é a GAIA** (`run.py::_monitorar_steam_loop`,
+  a cada 20min): só tenta a autocura quando detecta `valida: false`; se
+  funcionar, segue em silêncio (a checagem seguinte já usa o cookie novo);
+  se falhar (usuário não está logado em nenhum dos 3 navegadores), avisa 1x
+  só (`steam_sessao_expirada_avisada` em `brain.json`, reseta quando a
+  sessão volta a ficar válida) - nunca repete o aviso a cada ciclo. Botão
+  manual "🔑 Checar/renovar sessão da Steam agora" no modal "👨‍👩‍👧 Família
+  (Steam)" do Painel chama o mesmo endpoint sob demanda.
+
+## Destaque de "família" na Atividade da Steam (2026-09-01)
+
+Pedido do usuário: "quero receber principalmente qnd alguem da familia
+compra algo novo" - hoje `atividade.py` trata todo mundo do feed de
+atividade igual (qualquer amigo), sem prioridade nenhuma. Decisão (usuário
+escolheu entre "destacar" e "filtrar", ver conversa): **destacar**, não
+filtrar - continua notificando toda a atividade de amigos como antes, mas
+eventos de família ganham um campo `familia: true` no evento (`hestia/core/
+familia.py`), que a GAIA usa pra prefixar a notificação de forma diferente
+(`run.py`, lado da GAIA) - nunca silencia o resto.
+
+Cadastro é por LINK do perfil (`ui/qt_modais/steam_familia.py`, lado da
+GAIA), não por accountid cru - o usuário não sabe de cabeça o accountid de
+ninguém. `familia.py` resolve o link pra SteamID64 (via
+`ISteamUser/ResolveVanityURL`, se for link customizado tipo `/id/apelido`)
+e converte pra **accountid** (SteamID64 - 76561197960265728, os 32 bits
+baixos) na hora de salvar - é esse número, não o SteamID64 inteiro, que a
+página de atividade expõe em `data-miniprofile` pra cada autor de evento
+(compra/rollup). Comparação em `_extrair_eventos` é sempre por accountid,
+nunca por nome (que pode mudar).
 
 ## Dados migrados (2026-08-24, verificados por checksum antes de remover da GAIA)
 
