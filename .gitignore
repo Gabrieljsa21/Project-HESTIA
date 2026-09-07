@@ -16,6 +16,7 @@ dist/
 # Cache de pesquisa (DDG) e dados gerados em runtime (estado real do usuário)
 cache/
 data/*.json
+logs/
 
 # Editores / SO
 .vscode/

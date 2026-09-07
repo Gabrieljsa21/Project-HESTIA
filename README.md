@@ -1,92 +1,71 @@
+<p align="center">
+  <img src="assets/icone_hestia.png" alt="Project HESTIA" width="180">
+</p>
+
 # Project HESTIA
 
-Assistente de Steam da GAIA - acompanha a wishlist do usuário (avisa
-lançamento do dia, saída de Acesso Antecipado, jogo que virou grátis, DLC
-nova, lembretes antecipados), a página de atividade (compra/conquista/
-anúncio de amigos, com destaque configurável pra "família" - `hestia/core/
-familia.py`) e o progresso de conquistas de um jogo específico
-(incluindo busca de guia de "como destravar"). Processo próprio, **sem
-interface gráfica** - só uma ponte HTTP; quem decide QUANDO checar e O QUE
-FALAR sobre isso é sempre a [GAIA](../Project%20G.A.I.A) (assistente
-pessoal do mesmo autor), consultando o HESTIA por HTTP.
+Serviço que acompanha a Steam, incluindo wishlist, lançamentos, atividade e conquistas.
 
-Extraído da GAIA em 2026-08-24 - eram 3 features separadas
-(`features/game_releases/steam_lancamentos.py`,
-`features/steam_activity/steam_monitor.py`,
-`features/achievements/steam_conquistas.py`, ver histórico completo em
-`Project G.A.I.A/assistant/docs/FUNCIONALIDADES.md`/`CHANGELOG.md`).
-Arquitetura completa e decisões de design em [`ARQUITETURA.md`](ARQUITETURA.md).
+## Recursos principais
 
-## A origem do nome
+- avisa sobre lançamentos, DLCs, jogos gratuitos e saída de Acesso Antecipado;
+- acompanha compras, conquistas e anúncios na atividade da Steam;
+- destaca pessoas marcadas como família;
+- consulta o progresso de conquistas;
+- procura guias para destravar conquistas.
 
-Héstia é a deusa grega da lareira, do fogo doméstico e do lar - a Steam
-como o "lar" da biblioteca de jogos do usuário, a chama como o núcleo que
-permanece ativo (identidade visual: fogo/chama/vapor, também conecta com
-"Steam" literalmente). Escopo de longo prazo do projeto é mais amplo do
-que o que existe em código hoje (biblioteca completa, Early Access →
-lançamento, preços, tempo jogado, atualizações importantes) - o estado
-atual cobre só wishlist/atividade/conquistas, a parte que já existia como
-feature da GAIA antes da extração.
+O HESTIA recebe pedidos pela API local na porta `8770`. Ele não possui janela própria nem faz consultas em horário fixo por conta própria.
 
-## Uso standalone
+## Origem do nome
 
-```bash
+HESTIA vem de Héstia (Ἑστία), deusa grega da lareira, do fogo doméstico, da casa e do lar. Na Grécia antiga, a lareira ocupava o centro da casa e representava estabilidade, pertencimento e o lugar para onde as pessoas retornavam.
+
+A Steam cumpre um papel parecido como lar da biblioteca de jogos: **Héstia → lareira → lar → biblioteca de jogos → Steam**.
+
+### Identidade visual
+
+A logo traz uma chama dourada no centro, referência direta ao fogo de Héstia. Ao redor dela, fluxos azuis e brancos lembram fumaça, vapor, chama azul e energia.
+
+Essa combinação forma a sequência **fogo → calor → vapor → Steam**. Os pequenos cristais mantêm a linguagem visual do ecossistema sem tirar o destaque da chama.
+
+## Requisitos
+
+- Python 3.11 ou mais recente;
+- conta da Steam;
+- dados opcionais da Steam conforme o recurso usado.
+
+## Instalação e uso
+
+```powershell
 uv venv
 uv pip install -e .
+Copy-Item .env.example .env
 python -m hestia.main
 ```
 
-Sem loop de manutenção próprio (diferente do Project MOIRAI, que continua
-baixando/sincronizando sozinho mesmo com a GAIA fechada) - o HESTIA fica
-parado esperando requisição HTTP na porta 8770 (`hestia/api_bridge.py`).
-As 3 checagens (lançamentos, atividade, conquistas) só rodam quando
-alguém pergunta - normalmente a GAIA, pelo Agendador Diário ou por uma
-tag sob demanda (`<STEAM>`/`<LANCAMENTOS>`/`<CONQUISTAS:jogo>`/
-`<GUIA_CONQUISTA:jogo:conquista>`); sem a GAIA rodando, chame os
-endpoints manualmente.
+O `.env.example` explica estas opções:
 
-**Sem terminal aberto (2026-09-01)**: `iniciar_hestia_oculto.vbs` sobe o
-processo escondido via `pythonw.exe`, sem janela de console nenhuma - mesmo
-padrão do `iniciar_iris_oculto.vbs`/`iniciar_argus_oculto.vbs`. **Ainda sem
-redirecionamento de log pra arquivo** (diferente da GAIA/ERIS, que já
-espelham stdout/stderr - ver `_RedirecionadorLog` em `Project-ERIS/eris/
-main.py`) - rodando assim, qualquer `print()`/traceback é descartado no
-vazio; ver `TODO.md`.
+- `STEAM_ID64` para a wishlist;
+- `STEAM_WEBAPI_KEY` para conquistas;
+- `STEAM_LOGIN_SECURE` e `STEAM_PERFIL_URL` para a atividade.
 
-Variáveis de ambiente opcionais (`.env`, ver `.env.example`) - cada uma
-liga um módulo independente:
-- `STEAM_LOGIN_SECURE`/`STEAM_PERFIL_URL` - sessão logada da Steam, usada
-  pelo monitoramento de atividade (compra/conquista/anúncio de amigos) e
-  como fallback pra resolver o SteamID64 se ele não estiver configurado.
-- `STEAM_ID64` - usado pelo Assistente de Lançamentos pra ler a wishlist
-  via API oficial (sem chave nenhuma).
-- `STEAM_WEBAPI_KEY` - usada pelo Assistente de Conquistas pra ler o
-  progresso real de conquistas.
-- `GAIA_WEBHOOK_URL` - onde avisar a GAIA pra sincronizar um lançamento
-  com o Google Calendar dedicado "Lançamentos Steam" (padrão
-  `http://127.0.0.1:8766/hestia/sincronizar_lancamento`) - o HESTIA nunca
-  fala com o Google Calendar direto, evita duplicar credencial OAuth só
-  pra isso (a GAIA já tem tudo configurado pra Agenda/Secretária).
+Use `iniciar_hestia_oculto.vbs` para abrir sem terminal visível.
 
-## Integração com a GAIA
+## Integrações com outros projetos
 
-`integrations/hestia_client.py` (repo da GAIA) fala com a ponte HTTP
-daqui - usado pelo Agendador Diário (avisos proativos de lançamento/
-atividade), pelo monitoramento reativo de atividade (`_monitorar_steam_
-loop`, a cada 20min) e pelas tags sob demanda `<STEAM>`/`<LANCAMENTOS>`/
-`<CONQUISTAS:jogo>`/`<GUIA_CONQUISTA:jogo:conquista>`. A resolução de
-NOME de jogo pra appid (`<CONQUISTAS:nome do jogo>`) fica do lado da
-GAIA, não aqui - depende da lista de jogos escaneados LOCALMENTE naquela
-máquina (`features/app_launcher/apps_scanner.py`), dado que não faz
-sentido virar chamada de rede pro HESTIA; o HESTIA só aceita appid
-numérico. Ver `hestia/api_bridge.py` pro contrato HTTP completo.
+- **GAIA:** define quando consultar os dados, apresenta os avisos por texto ou voz e sincroniza lançamentos com o Google Calendar.
 
-## Estado da extração (2026-08-24)
+Use `GAIA_WEBHOOK_URL` no `.env` para ativar a sincronização com o calendário.
 
-Completa - sem UI dedicada pra migrar (diferente do MOIRAI): os toggles
-de Steam sempre moraram no Painel da GAIA (`ui/qt_modais/notificacoes.py`,
-"quando/como avisar", não dado da Steam) e continuam lá sem mudança.
-Validado de ponta a ponta com dados reais: wishlist de ~230 itens,
-conquistas de um jogo real (percentuais/raridade), busca de guia de
-conquista (DDG + conteúdo completo da página), e o webhook de
-sincronização com o Google Calendar.
+A API local permite que outros clientes façam as mesmas consultas.
+
+## Documentação
+
+- [Arquitetura](docs/ARQUITETURA.md)
+- [Pendências](docs/TODO.md)
+- [Histórico de versões](CHANGELOG.md)
+- [Padrão de documentação](docs/PADRAO_DOCUMENTACAO.md)
+
+## Situação atual
+
+Wishlist, atividade, conquistas e busca de guias foram validadas com dados reais.

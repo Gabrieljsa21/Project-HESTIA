@@ -12,6 +12,10 @@ import sys
 
 from dotenv import load_dotenv
 
+from hestia import runtime_log
+
+PASTA_PROJETO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # 🔥 override=True (2026-08-24, mesmo bug real corrigido na GAIA no mesmo dia,
 # ver Project G.A.I.A/assistant/docs/CORRECOES.md) - sem isso, uma variável de
 # ambiente herdada do processo que lançou o HESTIA (ex.: a própria GAIA, via
@@ -21,7 +25,7 @@ from dotenv import load_dotenv
 # `os.getenv` dentro das próprias funções (chamadas só depois do servidor
 # subir, então a ordem de import aqui não importa pra elas - só precisa
 # acontecer antes do primeiro request de verdade).
-load_dotenv(override=True)
+load_dotenv(os.path.join(PASTA_PROJETO, ".env"), override=True)
 
 from hestia.api_bridge import iniciar_servidor_api  # noqa: E402
 
@@ -44,6 +48,7 @@ def _garantir_instancia_unica():
 
 
 def main():
+    runtime_log.ativar(PASTA_PROJETO)
     _garantir_instancia_unica()
     os.makedirs("data", exist_ok=True)
 
