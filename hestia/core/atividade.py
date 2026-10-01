@@ -6,7 +6,7 @@ decide como avisar: log local, voz, DM do Discord - ver `GET /atividade/verifica
 hestia/api_bridge.py).
 
 Extraído de `Project G.A.I.A/assistant/features/steam_activity/steam_monitor.py`
-(2026-08-24, ver ARQUITETURA.md) - lógica 100% idêntica, sem nenhuma dependência da
+(2026-08-24, ver docs/ARQUITETURA.md) - lógica 100% idêntica, sem nenhuma dependência da
 GAIA pra começar (só `os.getenv` pras credenciais).
 
 Usa a sessão de login autenticada (STEAM_LOGIN_SECURE no .env) porque essa página é

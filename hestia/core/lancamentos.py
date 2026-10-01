@@ -5,7 +5,7 @@ lançamento do dia, saída de Acesso Antecipado (1.0), virou Free to Play, DLC n
 anunciada, e lembretes antecipados (30/7/1 dias antes do lançamento).
 
 Extraído de `Project G.A.I.A/assistant/features/game_releases/
-steam_lancamentos.py` (2026-08-24, ver ARQUITETURA.md) - lógica 100%
+steam_lancamentos.py` (2026-08-24, ver docs/ARQUITETURA.md) - lógica 100%
 idêntica, só a sincronização com o Google Calendar mudou de uma chamada
 Python direta pra um webhook (`hestia.integrations.gaia_webhook`), já que o
 HESTIA roda em processo separado e não tem (nem deveria ter) credencial

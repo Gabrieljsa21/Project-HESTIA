@@ -6,7 +6,7 @@ Diferente de atividade.py (feed de atividade de amigos/anúncios) e lancamentos.
 foi destravado com o que falta.
 
 Extraído de `Project G.A.I.A/assistant/features/achievements/steam_conquistas.py`
-(2026-08-24, ver ARQUITETURA.md) - 1 mudança de contrato real: `obter_progresso_
+(2026-08-24, ver docs/ARQUITETURA.md) - 1 mudança de contrato real: `obter_progresso_
 conquistas` recebe SÓ appid numérico agora (`_resolver_appid`, que lia a lista de
 jogos escaneados LOCALMENTE nesta máquina via `features/app_launcher/apps_scanner.py`,
 ficou do lado da GAIA - dado local-da-máquina não faz sentido virar chamada de rede pro
