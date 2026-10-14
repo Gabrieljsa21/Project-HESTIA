@@ -7,6 +7,8 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-14
+
 ### Adicionado
 
 - **`iniciar_hestia.bat`/`iniciar_hestia_oculto.vbs` (2026-09-01)** - roda o HESTIA escondido via `pythonw.exe`, sem console. Usado pelo item "HESTIA" da categoria "Projects" do IRIS (ver `Project-IRIS/docs/ARQUITETURA.md`). Ver `README.md`.
