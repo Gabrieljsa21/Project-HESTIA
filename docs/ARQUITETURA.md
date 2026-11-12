@@ -24,8 +24,8 @@ O MOIRAI precisa de `_loop_manutencao` porque downloads/biblioteca/MAL têm
 valor mesmo com a GAIA fechada (o usuário quer que o episódio termine de
 baixar). As 3 checagens de Steam não têm esse valor independente - a única
 razão de checar é AVISAR alguém, e quem decide isso é sempre a GAIA
-(persona). Por isso o HESTIA fica parado esperando requisição: `GET
-/lancamentos/verificar` (1x/dia, Agendador Diário), `GET /atividade/
+(persona). Por isso o HESTIA fica parado esperando requisição: `POST
+/lancamentos/varrer` (1x/dia, Agendador Diário, roda em segundo plano), `GET /atividade/
 verificar` (a cada 20min, `_monitorar_steam_loop`) e `GET /conquistas/
 <appid>`/`GET /guia_conquista` (sob demanda, tags `<CONQUISTAS>`/
 `<GUIA_CONQUISTA>`) só rodam quando a GAIA pergunta.
@@ -170,14 +170,55 @@ ainda pode ser perdido (`dias_restantes` já negativo não casa bracket
 nenhum). Não corrigido - janela bem mais estreita que o bug relatado
 (exige os dois problemas ao mesmo tempo), fora do escopo do relato atual.
 
+## Varredura em segundo plano e fila confirmada (0.3.0, 2026-11-12)
+
+Achado na análise do projeto: a varredura da wishlist leva uns 7 minutos
+(274 itens x 1,5 s entre chamadas ao `appdetails`) e a GAIA esperava 300 s
+pela resposta de `GET /lancamentos/verificar`. Ela desistia, recebia lista
+vazia e marcava o dia como feito; o HESTIA terminava a varredura, gravava
+as faixas de lembrete como enviadas e só então tentava responder a uma
+conexão já fechada. Resultado: o aviso daquele dia sumia sem rastro (78
+`ConnectionAbortedError` nesse endpoint em 58 dias de log). Aumentar o
+timeout só adiaria o problema: a wishlist cresce.
+
+- **Varredura numa thread**: `POST /lancamentos/varrer` liga
+  `_executar_varredura` e volta na hora. Uma segunda chamada com a
+  varredura em andamento não abre outra.
+- **Fila em disco** (`data/lancamentos_pendentes.json`): cada aviso ganha
+  um `id` e fica lá até a GAIA confirmar a entrega
+  (`POST /lancamentos/confirmar`). GAIA fechada, Discord fora do ar ou
+  conexão caída deixam o aviso na fila para a rodada seguinte.
+- **Data da última varredura do lado do HESTIA**: gravada no fim de uma
+  varredura sem exceção. Se ela cair no meio, a data não muda e a GAIA pede
+  de novo na rodada seguinte do agendador (a cada 10 min).
+- **A GAIA não espera mais**: a cada rodada do agendador ela entrega o que
+  estiver na fila e, depois da hora configurada, pede a varredura se a de
+  hoje ainda não foi concluída. Os avisos chegam numa rodada seguinte,
+  minutos depois da hora configurada.
+
+Junto: a ponte virou `ThreadingHTTPServer` (antes uma requisição lenta
+travava as rápidas, mais de 160 conexões abortadas em sessão, família e
+atividade), com `threading.Lock` nos trechos de leitura e regravação de
+arquivo em `atividade.py`, `familia.py` e na fila. Erro num endpoint vira
+HTTP 500; cliente que desistiu vira uma linha de log. Estado da wishlist,
+fila e data passam por `hestia/armazenamento.py` (gravação atômica com
+`.bak`), para uma queda de energia no meio da gravação não zerar a wishlist
+e fazer tudo parecer "primeira vez".
+
 ## Contrato HTTP (`hestia/api_bridge.py`, porta 8770)
 
-- `GET /lancamentos/verificar` - varre a wishlist inteira (minutos, não
-  segundos), devolve eventos novos.
+- `POST /lancamentos/varrer` - dispara a varredura da wishlist numa thread
+  e volta na hora (`{"iniciada", "varrendo"}`); não abre outra se já houver
+  uma rodando.
+- `GET /lancamentos/pendentes` - `{"varrendo", "ultima_varredura_concluida",
+  "ultimo_erro", "eventos": [{"id", "texto", "criado_em"}]}`.
+- `POST /lancamentos/confirmar` (`{"ids": [...]}`) - tira da fila os avisos
+  que a GAIA já entregou.
 - `GET /lancamentos/proximos?limite=N` - lê o cache local, não refaz a
   varredura.
-- `GET`/`POST /lancamentos/ultima_checagem_diaria` - catch-up persistido
-  (mesmo padrão do MOIRAI).
+- `GET`/`POST /lancamentos/ultima_checagem_diaria` - data da última
+  varredura concluída (desde a 0.3.0 gravada pelo próprio HESTIA no fim da
+  varredura; o `POST` continua existindo, mas a GAIA não usa mais).
 - `GET /atividade/verificar` - novidades da página de atividade desde a
   última checagem.
 - `GET /atividade/atual?limite=N` - estado atual, sem alterar o "já visto".

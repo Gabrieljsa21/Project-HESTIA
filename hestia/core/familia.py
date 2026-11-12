@@ -15,12 +15,16 @@ cada evento.
 import os
 import re
 import json
+import threading
 import requests
 
 ARQUIVO_FAMILIA = "data/familia.json"
 # 🔥 SteamID64 = accountid + esse offset fixo (base do universo público "1"
 # nos SteamID de 64 bits) - conversão padrão, não é mágica nem heurística.
 _OFFSET_STEAMID64 = 76561197960265728
+# Servidor com threads: adicionar e remover ao mesmo tempo não pode perder
+# uma das duas mudanças.
+_lock = threading.Lock()
 
 
 def _extrair_identificador(perfil_ou_id):
@@ -108,14 +112,19 @@ def adicionar_familia(perfil_ou_id):
     if any(item["accountid"] == accountid for item in lista):
         return {"erro": "Essa pessoa já está na lista de família."}
     entrada = {"steamid64": steamid64, "accountid": accountid, "nome": _obter_nome_exibicao(steamid64)}
-    lista.append(entrada)
-    _salvar(lista)
+    with _lock:
+        lista = _carregar()
+        if any(item["accountid"] == accountid for item in lista):
+            return {"erro": "Essa pessoa já está na lista de família."}
+        lista.append(entrada)
+        _salvar(lista)
     return entrada
 
 
 def remover_familia(accountid):
-    lista = [item for item in _carregar() if item["accountid"] != str(accountid)]
-    _salvar(lista)
+    with _lock:
+        lista = [item for item in _carregar() if item["accountid"] != str(accountid)]
+        _salvar(lista)
 
 
 def accountids_familia():
