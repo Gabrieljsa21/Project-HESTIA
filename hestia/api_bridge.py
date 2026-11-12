@@ -12,8 +12,9 @@ LOCAL desta máquina (lista de jogos escaneados, `features/app_launcher/
 apps_scanner.py` do lado da GAIA), não faz sentido virar chamada de rede pro
 HESTIA (ver `core/agent/turno.py::_obter_conquistas_resolvendo_nome`)."""
 import json
+import traceback
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from hestia.core import atividade, lancamentos, conquistas, familia
 
@@ -45,7 +46,30 @@ class _API(BaseHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
+    def _executar_protegido(self, tratar):
+        """Uma requisição que falha não derruba as outras nem deixa o
+        cliente esperando: erro vira 500, e cliente que desistiu antes da
+        resposta vira uma linha de log em vez de um traceback inteiro."""
+        try:
+            tratar()
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            print(f" [SISTEMA] Cliente fechou a conexão antes da resposta: {self.command} {self.path}")
+        except Exception:
+            print(f" [SISTEMA] Erro em {self.command} {self.path}:")
+            print(traceback.format_exc())
+            try:
+                self.send_response(500)
+                self.end_headers()
+            except Exception:
+                pass
+
     def do_GET(self):
+        self._executar_protegido(self._tratar_get)
+
+    def do_POST(self):
+        self._executar_protegido(self._tratar_post)
+
+    def _tratar_get(self):
         caminho, _, query = self.path.partition("?")
         params = urllib.parse.parse_qs(query)
 
@@ -58,8 +82,8 @@ class _API(BaseHTTPRequestHandler):
             self._responder_json({"ultima_data": atividade.obter_ultima_checagem_diaria_resumo()})
         elif caminho == "/atividade/sessao_valida":
             self._responder_json(atividade.obter_status_sessao())
-        elif caminho == "/lancamentos/verificar":
-            self._responder_json(lancamentos.verificar_lancamentos())
+        elif caminho == "/lancamentos/pendentes":
+            self._responder_json(lancamentos.obter_status_varredura())
         elif caminho == "/lancamentos/proximos":
             limite = int((params.get("limite") or [10])[0])
             self._responder_json(lancamentos.obter_proximos_lancamentos(limite))
@@ -78,7 +102,7 @@ class _API(BaseHTTPRequestHandler):
         else:
             self._responder_404()
 
-    def do_POST(self):
+    def _tratar_post(self):
         caminho = self.path
 
         if caminho == "/atividade/ultima_checagem_diaria":
@@ -87,6 +111,10 @@ class _API(BaseHTTPRequestHandler):
         elif caminho == "/lancamentos/ultima_checagem_diaria":
             lancamentos.salvar_ultima_checagem_diaria(_ler_corpo_json(self).get("data", ""))
             self._responder_ok()
+        elif caminho == "/lancamentos/varrer":
+            self._responder_json(lancamentos.iniciar_varredura())
+        elif caminho == "/lancamentos/confirmar":
+            self._responder_json(lancamentos.confirmar_eventos(_ler_corpo_json(self).get("ids", [])))
         elif caminho == "/atividade/renovar_sessao":
             self._responder_json(atividade.renovar_sessao_via_navegador())
         elif caminho == "/familia":
@@ -102,5 +130,9 @@ class _API(BaseHTTPRequestHandler):
 
 
 def iniciar_servidor_api():
-    servidor = HTTPServer((LOCAL_API_HOST, LOCAL_API_PORT), _API)
+    # Uma thread por requisição: a varredura da wishlist, a busca de guia
+    # de conquista ou a página de atividade não travam mais os endpoints
+    # rápidos (sessão, família, próximos lançamentos) enquanto rodam.
+    servidor = ThreadingHTTPServer((LOCAL_API_HOST, LOCAL_API_PORT), _API)
+    servidor.daemon_threads = True
     servidor.serve_forever()

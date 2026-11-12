@@ -7,6 +7,20 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-12
+
+### Corrigido
+
+- **Avisos de lançamento da wishlist se perdiam quase todo dia.** A varredura leva uns 7 minutos (274 itens, 1,5 s entre chamadas) e a GAIA esperava só 300 s pela resposta: ela desistia, recebia lista vazia e marcava o dia como feito, enquanto o HESTIA terminava a varredura, gravava as faixas de lembrete como enviadas e tentava responder a uma conexão já fechada. Os logs registravam 78 `ConnectionAbortedError` nesse endpoint em 58 dias. Agora a varredura roda numa thread (`POST /lancamentos/varrer` volta na hora), os avisos vão para uma fila em disco (`data/lancamentos_pendentes.json`) e só saem dela quando a GAIA confirma a entrega (`POST /lancamentos/confirmar`). A data da última varredura concluída passa a ser gravada pelo próprio HESTIA, e só quando a varredura termina sem erro. Exige a GAIA 0.27.5 ou mais nova.
+- **Um pedido lento travava todos os outros.** A ponte HTTP atendia uma requisição por vez, então a varredura, a busca de guia ou a página de atividade deixavam sessão, família e próximos lançamentos sem resposta (mais de 160 conexões abortadas nesses endpoints). A ponte passou a usar `ThreadingHTTPServer`, com locks nos trechos que leem e regravam arquivos (`atividade.py`, `familia.py`, fila de lançamentos).
+- **Erro dentro de um endpoint deixava o cliente sem resposta.** Exceções viram HTTP 500 com o traceback no log; cliente que desiste antes da resposta vira uma linha de log em vez de um traceback inteiro.
+
+### Alterado
+
+- `GET /lancamentos/verificar` saiu. No lugar: `POST /lancamentos/varrer`, `GET /lancamentos/pendentes` e `POST /lancamentos/confirmar` (ver `docs/ARQUITETURA.md`).
+- Estado da wishlist, fila de avisos e data da última varredura são gravados de forma atômica (`hestia/armazenamento.py`: arquivo temporário + `os.replace`, cópia `.bak` da versão anterior). Uma queda de energia no meio da gravação não zera mais a wishlist.
+- A varredura escreve no log quantos itens leu, quantos ficaram sem resposta da loja e quantos avisos gerou.
+
 ## [0.2.0] - 2026-10-14
 
 ### Adicionado

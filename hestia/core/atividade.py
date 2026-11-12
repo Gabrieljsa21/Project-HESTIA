@@ -32,6 +32,7 @@ import os
 import json
 import hashlib
 import secrets
+import threading
 import requests
 import browser_cookie3
 from bs4 import BeautifulSoup
@@ -65,6 +66,11 @@ _SESSION_ID_FAKE = secrets.token_hex(12)
 # 🔥 Limita o crescimento do arquivo - só precisa saber "já vi isso recentemente" (a
 # própria página da Steam só mostra os últimos dias), não guardar histórico eterno.
 MAX_VISTOS_GUARDADOS = 300
+# 🔥 Servidor com threads (2026-11-12): duas requisições podem ler e regravar
+# os mesmos arquivos ao mesmo tempo (status da sessão em toda busca de HTML,
+# "vistos" na checagem). O lock serializa só esses trechos curtos de
+# leitura-e-gravação, nunca a busca de rede.
+_lock_arquivos = threading.Lock()
 
 
 def _chave(*partes):
@@ -157,6 +163,11 @@ def _carregar_status_bruto():
 
 
 def _marcar_status_sessao(valida_desta_tentativa):
+    with _lock_arquivos:
+        _marcar_status_sessao_sem_lock(valida_desta_tentativa)
+
+
+def _marcar_status_sessao_sem_lock(valida_desta_tentativa):
     if valida_desta_tentativa:
         novo = {"valida": True, "falhas_consecutivas": 0}
     else:
@@ -212,7 +223,8 @@ def renovar_sessao_via_navegador():
             continue
         if valor:
             os.environ["STEAM_LOGIN_SECURE"] = valor
-            _atualizar_env("STEAM_LOGIN_SECURE", valor)
+            with _lock_arquivos:
+                _atualizar_env("STEAM_LOGIN_SECURE", valor)
             return {"sucesso": True, "origem": nome}
     return {"sucesso": False, "origem": None}
 
@@ -306,11 +318,12 @@ def verificar_novidades_steam():
         if not html:
             return []
         eventos = _extrair_eventos(html)
-        primeira_vez = not os.path.exists(ARQUIVO_VISTOS)
-        vistos = _carregar_vistos()
-        novos = [e for e in eventos if e["chave"] not in vistos]
-        vistos.update(e["chave"] for e in eventos)
-        _salvar_vistos(vistos)
+        with _lock_arquivos:
+            primeira_vez = not os.path.exists(ARQUIVO_VISTOS)
+            vistos = _carregar_vistos()
+            novos = [e for e in eventos if e["chave"] not in vistos]
+            vistos.update(e["chave"] for e in eventos)
+            _salvar_vistos(vistos)
         if primeira_vez:
             # 🔥 Primeira checagem só estabelece a linha de base, não notifica - sem
             # isso, toda a atividade recente (pode ser 15-20 itens) seria avisada de

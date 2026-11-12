@@ -21,17 +21,20 @@ Diferente de atividade.py (que raspa uma página autenticada, mais frágil), iss
 depende de sessão/cookie - só do STEAM_ID64 do usuário. Rate limit do appdetails é
 severo (por isso o intervalo de 1.5s entre chamadas) - com ~180 itens na wishlist, uma
 checagem completa leva alguns minutos, por isso é rodada 1x por dia (a GAIA decide
-quando, ver `GET /lancamentos/verificar` em hestia/api_bridge.py), não em loop curto
-como o resto do monitoramento.
+quando, ver `POST /lancamentos/varrer` em hestia/api_bridge.py), não em loop curto
+como o resto do monitoramento. Roda numa thread e entrega os avisos por uma fila
+confirmada (ver `iniciar_varredura`/`confirmar_eventos` abaixo).
 """
 
 import os
-import json
 import time
+import uuid
+import threading
 import requests
-from datetime import date
+from datetime import date, datetime
 
 import hestia.integrations.gaia_webhook as gaia_webhook
+from hestia.armazenamento import ler_json, gravar_json
 
 ARQUIVO_ESTADO = "data/lancamentos_estado.json"
 INTERVALO_ENTRE_CHAMADAS_SEGUNDOS = 1.5
@@ -139,19 +142,11 @@ def obter_detalhes_app(appid):
 
 
 def _carregar_estado():
-    if not os.path.exists(ARQUIVO_ESTADO):
-        return {}
-    try:
-        with open(ARQUIVO_ESTADO, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+    return ler_json(ARQUIVO_ESTADO, {})
 
 
 def _salvar_estado(estado):
-    os.makedirs(os.path.dirname(ARQUIVO_ESTADO), exist_ok=True)
-    with open(ARQUIVO_ESTADO, "w", encoding="utf-8") as f:
-        json.dump(estado, f, ensure_ascii=False, indent=2)
+    gravar_json(ARQUIVO_ESTADO, estado)
 
 
 ARQUIVO_CHECAGEM_DIARIA = "data/lancamentos_checagem_diaria.json"
@@ -163,19 +158,11 @@ def obter_ultima_checagem_diaria():
     pra sobreviver a reinícios. Sem isso, se o processo ficasse desligado durante a
     hora configurada (a GAIA decide isso, ver `GET/POST /ultima_checagem_diaria` em
     hestia/api_bridge.py) e fosse ligado de novo só depois, o catch-up nunca disparava."""
-    if not os.path.exists(ARQUIVO_CHECAGEM_DIARIA):
-        return None
-    try:
-        with open(ARQUIVO_CHECAGEM_DIARIA, "r", encoding="utf-8") as f:
-            return json.load(f).get("ultima_data")
-    except Exception:
-        return None
+    return ler_json(ARQUIVO_CHECAGEM_DIARIA, {}).get("ultima_data")
 
 
 def salvar_ultima_checagem_diaria(data_str):
-    os.makedirs(os.path.dirname(ARQUIVO_CHECAGEM_DIARIA), exist_ok=True)
-    with open(ARQUIVO_CHECAGEM_DIARIA, "w", encoding="utf-8") as f:
-        json.dump({"ultima_data": data_str}, f, ensure_ascii=False, indent=2)
+    gravar_json(ARQUIVO_CHECAGEM_DIARIA, {"ultima_data": data_str})
 
 
 def verificar_lancamentos(steamid=None):
@@ -194,12 +181,14 @@ def verificar_lancamentos(steamid=None):
 
     estado = _carregar_estado()
     eventos = []
+    falhas = 0
 
     for appid_int in appids_atuais:
         appid = str(appid_int)
         detalhes = obter_detalhes_app(appid_int)
         time.sleep(INTERVALO_ENTRE_CHAMADAS_SEGUNDOS)
         if detalhes is None:
+            falhas += 1
             continue
 
         anterior = estado.get(appid)
@@ -308,7 +297,88 @@ def verificar_lancamentos(steamid=None):
             del estado[appid_guardado]
 
     _salvar_estado(estado)
+    print(
+        f" [SISTEMA] Varredura da wishlist: {len(appids_atuais)} itens, "
+        f"{falhas} sem resposta da loja, {len(eventos)} aviso(s) novo(s)."
+    )
     return eventos
+
+
+# ---------- Varredura em segundo plano + fila de avisos confirmados ----------
+#
+# A varredura leva uns 7 minutos (274 itens x 1,5 s), mais do que a GAIA
+# esperava pela resposta HTTP (300 s). Ela desistia, recebia lista vazia, e o
+# HESTIA terminava a varredura, gravava as faixas de lembrete como enviadas e
+# só então tentava responder a uma conexão já fechada: o aviso do dia sumia
+# (78 `ConnectionAbortedError` nesse endpoint em 58 dias de log, 2026-11-09).
+# Agora a varredura roda numa thread, os avisos vão para uma fila em disco
+# e só saem dela quando a GAIA confirma que entregou (`confirmar_eventos`).
+
+ARQUIVO_PENDENTES = "data/lancamentos_pendentes.json"
+_lock_pendentes = threading.Lock()
+_lock_varredura = threading.Lock()
+_varrendo = False
+_ultimo_erro = None
+
+
+def _carregar_pendentes():
+    return ler_json(ARQUIVO_PENDENTES, [])
+
+
+def _executar_varredura():
+    global _varrendo, _ultimo_erro
+    try:
+        eventos = verificar_lancamentos()
+        agora = datetime.now().isoformat(timespec="seconds")
+        with _lock_pendentes:
+            pendentes = _carregar_pendentes()
+            pendentes.extend({"id": uuid.uuid4().hex[:12], "texto": texto, "criado_em": agora} for texto in eventos)
+            gravar_json(ARQUIVO_PENDENTES, pendentes)
+        # A GAIA usa esta data para não pedir outra varredura no mesmo dia.
+        # Só é gravada no fim de uma varredura sem exceção: se cair no meio,
+        # a GAIA pede de novo na rodada seguinte do agendador.
+        salvar_ultima_checagem_diaria(date.today().isoformat())
+        _ultimo_erro = None
+    except Exception as e:
+        _ultimo_erro = str(e)
+        print(f" [SISTEMA] Erro na varredura da wishlist: {e}")
+    finally:
+        with _lock_varredura:
+            _varrendo = False
+
+
+def iniciar_varredura():
+    """Dispara a varredura numa thread e volta na hora. Se já houver uma
+    rodando, não abre outra."""
+    global _varrendo
+    with _lock_varredura:
+        if _varrendo:
+            return {"iniciada": False, "varrendo": True}
+        _varrendo = True
+    threading.Thread(target=_executar_varredura, name="varredura-wishlist", daemon=True).start()
+    return {"iniciada": True, "varrendo": True}
+
+
+def obter_status_varredura():
+    with _lock_pendentes:
+        pendentes = _carregar_pendentes()
+    return {
+        "varrendo": _varrendo,
+        "ultima_varredura_concluida": obter_ultima_checagem_diaria(),
+        "ultimo_erro": _ultimo_erro,
+        "eventos": pendentes,
+    }
+
+
+def confirmar_eventos(ids):
+    """Tira da fila os avisos que a GAIA já entregou."""
+    ids = set(ids or [])
+    with _lock_pendentes:
+        pendentes = _carregar_pendentes()
+        restantes = [p for p in pendentes if p.get("id") not in ids]
+        if len(restantes) != len(pendentes):
+            gravar_json(ARQUIVO_PENDENTES, restantes)
+    return {"removidos": len(pendentes) - len(restantes), "restantes": len(restantes)}
 
 
 def _rotulo_lancamento(item):
