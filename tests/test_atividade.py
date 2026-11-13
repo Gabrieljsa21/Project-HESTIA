@@ -107,6 +107,7 @@ def test_linha_de_conquista_traz_os_nomes(monkeypatch):
     )
     evento = atividade._extrair_eventos(html)[0]
     assert evento["texto"] == "Ana (Aninha) conquistou em Jogo: Primeira, Segunda"
+    assert (evento["tipo"], evento["autor"]) == ("conquista", "Ana (Aninha)")
     assert evento["link"] == "https://store.steampowered.com/app/123"
 
 
@@ -125,3 +126,10 @@ def test_feed_recente_junta_dias_e_compras_da_api(monkeypatch):
     itens = atividade.obter_atividade_recente(2)
     assert [i["dia"] for i in itens][1:] == ["Hoje", "12 de nov."]
     assert itens[0]["texto"] == "Bia comprou X na Steam." and itens[0]["familia"] is True
+    assert [(i["tipo"], i["autor"]) for i in itens] == [("compra", "Bia"), ("primeira", "Ana"), ("primeira", "Ana")]
+
+
+def test_tipo_pelo_texto():
+    assert atividade._tipo_do_texto("Leo adicionou X à lista de desejos.") == "desejo"
+    assert atividade._tipo_do_texto("Leo e Ana agora são amigos.") == "amizade"
+    assert atividade._tipo_do_texto("Leo avaliou X.") == "outro"

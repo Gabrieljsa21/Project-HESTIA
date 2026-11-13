@@ -318,7 +318,9 @@ mostra a validade na aba Status da tela Steam.
   última checagem.
 - `GET /atividade/atual?limite=N` - estado atual, sem alterar o "já visto".
 - `GET /atividade/recente?dias=N` - feed dos últimos `N` dias (até 7), um
-  pedido por dia (`ajaxgetusernews`), com `dia`, `texto`, `familia`, `link`;
+  pedido por dia (`ajaxgetusernews`), com `dia`, `texto`, `familia`, `link`,
+  `tipo` e `autor` (0.8.0; o tipo das linhas de rollup sai do texto via
+  `TIPOS_POR_TEXTO`, com "outro" como reserva);
   inclui as compras da Web API (a página não mostra mais compras de amigos,
   conferido em 2026-11-13). Só leitura.
 - `GET`/`POST /atividade/ultima_checagem_diaria` - catch-up do resumo

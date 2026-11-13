@@ -7,6 +7,12 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-13
+
+### Adicionado
+
+- **Tipo e autor em cada item do feed** (`GET /atividade/recente`): `tipo` é compra, conquista, primeira (partida), desejo (wishlist), anuncio, amizade ou outro; `autor` é o nome como a Steam mostra (vazio em anúncio). A linha da página só tem texto livre, então o tipo sai dele, e o que não bater fica como "outro" em vez de sumir. Alimenta os filtros da aba Atividade da GAIA.
+
 ## [0.7.0] - 2026-11-13
 
 ### Adicionado

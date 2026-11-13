@@ -161,7 +161,9 @@ def obter_atividade_recente(dias=3):
     """Feed dos últimos `dias` dias como a página da Steam mostra (uma
     página por dia: a inicial e as de `ajaxgetusernews`), mais as compras
     que a Web API já trouxe (a página não mostra mais compras de amigos).
-    Cada item: `dia` (rótulo como "11 de nov."), `texto`, `familia`, `link`.
+    Cada item: `dia` (rótulo como "11 de nov."), `texto`, `familia`, `link`,
+    `tipo` (compra, conquista, primeira, desejo, anuncio, amizade, outro) e
+    `autor` (nome como a Steam mostra; None em anúncio).
     Só leitura: não mexe nos "vistos" do monitoramento."""
     dias = max(1, min(int(dias), MAX_DIAS_FEED))
     itens = []
@@ -170,7 +172,8 @@ def obter_atividade_recente(dias=3):
     paginas = 0
     while html and paginas < dias:
         for rotulo, eventos in _eventos_por_dia(html):
-            itens.extend({"dia": rotulo, "texto": e["texto"], "familia": e["familia"], "link": e.get("link")} for e in eventos)
+            itens.extend({"dia": rotulo, "texto": e["texto"], "familia": e["familia"], "link": e.get("link"),
+                          "tipo": e.get("tipo", "outro"), "autor": e.get("autor")} for e in eventos)
         paginas += 1
         proxima = _RE_PROXIMA_PAGINA.search(html)
         if not proxima or paginas >= dias:
@@ -194,7 +197,8 @@ def obter_atividade_recente(dias=3):
         if (datetime.now() - data).days >= dias:
             continue
         itens.insert(0, {"dia": f"{data.day} de {_MESES_ABREV[data.month - 1]}", "texto": h["texto"],
-                         "familia": h["familia"], "link": h.get("link")})
+                         "familia": h["familia"], "link": h.get("link"),
+                         "tipo": "compra", "autor": h["texto"].split(" comprou ")[0]})
     return itens
 
 
@@ -293,6 +297,33 @@ def renovar_sessao_via_navegador():
     return {"sucesso": False, "origem": None}
 
 
+# Tipo de cada evento (0.8.0): os filtros da tela Steam da GAIA. A linha de
+# rollup só tem texto livre, então o tipo sai dele; o que não bater cai em
+# "outro" e continua aparecendo.
+TIPOS_POR_TEXTO = (
+    ("conquista", "conquistou em"),
+    ("primeira", "pela primeira vez"),
+    ("desejo", "lista de desejos"),
+    ("amizade", "agora são amigos"),
+    ("compra", " comprou "),
+    ("compra", " agora possui "),
+)
+
+
+def _tipo_do_texto(texto):
+    for tipo, trecho in TIPOS_POR_TEXTO:
+        if trecho in texto:
+            return tipo
+    return "outro"
+
+
+def _limpar_nome(texto):
+    texto = " ".join(texto.split())
+    for antes, depois in ((" ,", ","), (" :", ":"), ("( ", "("), (" )", ")")):
+        texto = texto.replace(antes, depois)
+    return texto
+
+
 def _extrair_eventos(html):
     """Devolve lista de {"chave": str, "texto": str} - um por evento encontrado na
     página, na ordem em que aparecem. Tipos conhecidos, identificados por ESTRUTURA
@@ -328,6 +359,8 @@ def _extrair_eventos(html):
             "link": jogo_tag.get("href") if jogo_tag else None,
             "texto": f"{autor} comprou {jogo} na Steam.",
             "familia": id_autor in familia_ids,
+            "tipo": "compra",
+            "autor": autor,
         })
 
     for bloco in soup.select("div.blotter_userstatus[id^='group_announcement']"):
@@ -352,6 +385,8 @@ def _extrair_eventos(html):
             "link": titulo_tag.get("href") if titulo_tag else None,
             "texto": texto,
             "familia": False,  # anúncio é do jogo/grupo, não tem autor-amigo
+            "tipo": "anuncio",
+            "autor": None,
         })
 
     for linha in soup.select("div.blotter_daily_rollup_line"):
@@ -366,9 +401,7 @@ def _extrair_eventos(html):
         # A chave usa o texto cru (sem os nomes abaixo), para não mudar a
         # identidade de eventos já vistos.
         chave = _chave("rollup", id_autor, appid, texto_linha[:80])
-        texto_exibido = " ".join(texto_linha.split())
-        for antes, depois in ((" ,", ","), (" :", ":"), ("( ", "("), (" )", ")")):
-            texto_exibido = texto_exibido.replace(antes, depois)
+        texto_exibido = _limpar_nome(texto_linha)
         # 🔥 Nome das conquistas (2026-11-13, 0.6.1): na linha de conquista o
         # texto acaba em "conquistou em Jogo:" e os nomes ficam só no `title`
         # das imagens ao lado (nome na primeira linha, descrição na segunda).
@@ -384,6 +417,8 @@ def _extrair_eventos(html):
             "texto": texto_exibido,
             "familia": id_autor in familia_ids,
             "link": f"https://store.steampowered.com/app/{appid}" if appid else None,
+            "tipo": _tipo_do_texto(texto_exibido),
+            "autor": _limpar_nome(autor_tag.get_text(" ", strip=True)) if autor_tag else None,
         })
 
     return eventos
