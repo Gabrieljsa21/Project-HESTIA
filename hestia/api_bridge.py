@@ -79,6 +79,9 @@ class _API(BaseHTTPRequestHandler):
         elif caminho == "/atividade/atual":
             limite = int((params.get("limite") or [10])[0])
             self._responder_json(atividade.obter_atividade_atual(limite))
+        elif caminho == "/atividade/recente":
+            dias = int((params.get("dias") or [3])[0])
+            self._responder_json(atividade.obter_atividade_recente(dias))
         elif caminho == "/atividade/ultima_checagem_diaria":
             self._responder_json({"ultima_data": atividade.obter_ultima_checagem_diaria_resumo()})
         elif caminho == "/atividade/sessao_valida":

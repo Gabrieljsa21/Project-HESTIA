@@ -98,14 +98,8 @@ def _salvar_vistos(vistos):
     gravar_json(ARQUIVO_VISTOS, vistos[-MAX_VISTOS_GUARDADOS:], indent=None)
 
 
-def _buscar_html():
-    # Login próprio por QR (sessao_steam.py, 0.6.0) primeiro; o cookie copiado
-    # do navegador no `.env` fica só como reserva.
-    cookie = sessao_steam.obter_cookie() or os.getenv("STEAM_LOGIN_SECURE")
-    url = os.getenv("STEAM_PERFIL_URL")
-    if not cookie or not url:
-        return None
-    resp = requests.get(
+def _get_logado(url, cookie):
+    return requests.get(
         url,
         cookies={
             "steamLoginSecure": cookie,
@@ -127,11 +121,81 @@ def _buscar_html():
         },
         timeout=15,
     )
+
+
+def _buscar_html():
+    # Login próprio por QR (sessao_steam.py, 0.6.0) primeiro; o cookie copiado
+    # do navegador no `.env` fica só como reserva.
+    cookie = sessao_steam.obter_cookie() or os.getenv("STEAM_LOGIN_SECURE")
+    url = os.getenv("STEAM_PERFIL_URL")
+    if not cookie or not url:
+        return None
+    resp = _get_logado(url, cookie)
     if resp.status_code != 200:
         return None
     html = resp.text
     _marcar_status_sessao(_validar_sessao(html))
     return html
+
+
+# ---------------- Feed dos últimos dias (tela Steam da GAIA) ----------------
+
+_RE_PROXIMA_PAGINA = re.compile(r"g_BlotterNextLoadURL\s*=\s*'([^']+)'")
+_MESES_ABREV = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."]
+MAX_DIAS_FEED = 7
+
+
+def _eventos_por_dia(html):
+    """[(rótulo do dia, [eventos])] na ordem da página."""
+    soup = BeautifulSoup(html, "html.parser")
+    dias = []
+    for bloco in soup.select("div.blotter_day"):
+        cabecalho = bloco.select_one(".blotter_day_header_date")
+        # O bloco de hoje vem sem data no cabeçalho.
+        rotulo = (cabecalho.get_text(strip=True) if cabecalho else "") or "Hoje"
+        dias.append((rotulo, _extrair_eventos(str(bloco))))
+    return dias
+
+
+def obter_atividade_recente(dias=3):
+    """Feed dos últimos `dias` dias como a página da Steam mostra (uma
+    página por dia: a inicial e as de `ajaxgetusernews`), mais as compras
+    que a Web API já trouxe (a página não mostra mais compras de amigos).
+    Cada item: `dia` (rótulo como "11 de nov."), `texto`, `familia`, `link`.
+    Só leitura: não mexe nos "vistos" do monitoramento."""
+    dias = max(1, min(int(dias), MAX_DIAS_FEED))
+    itens = []
+    cookie = sessao_steam.obter_cookie() or os.getenv("STEAM_LOGIN_SECURE")
+    html = _buscar_html()
+    paginas = 0
+    while html and paginas < dias:
+        for rotulo, eventos in _eventos_por_dia(html):
+            itens.extend({"dia": rotulo, "texto": e["texto"], "familia": e["familia"], "link": e.get("link")} for e in eventos)
+        paginas += 1
+        proxima = _RE_PROXIMA_PAGINA.search(html)
+        if not proxima or paginas >= dias:
+            break
+        try:
+            resp = _get_logado(proxima.group(1), cookie)
+            dados = resp.json()
+            html = dados.get("blotter_html", "")
+            proxima_url = dados.get("next_request")
+            if proxima_url:
+                html += f"<script>g_BlotterNextLoadURL = '{proxima_url}';</script>"
+        except Exception as e:
+            print(f" [SISTEMA] Feed da Steam: falha ao carregar o dia seguinte: {e}")
+            break
+    compras = [h for h in historico.listar(200, categoria="atividade") if " comprou " in h["texto"]]
+    for h in compras:
+        try:
+            data = datetime.fromisoformat(h["em"])
+        except (TypeError, ValueError):
+            continue
+        if (datetime.now() - data).days >= dias:
+            continue
+        itens.insert(0, {"dia": f"{data.day} de {_MESES_ABREV[data.month - 1]}", "texto": h["texto"],
+                         "familia": h["familia"], "link": h.get("link")})
+    return itens
 
 
 # 🔥 1 falha isolada NÃO é prova de sessão expirada de verdade - a própria

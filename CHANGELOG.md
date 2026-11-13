@@ -7,6 +7,12 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-13
+
+### Adicionado
+
+- **`GET /atividade/recente?dias=N`** (até 7): feed dos últimos dias como a página da Steam mostra, uma página por dia (`ajaxgetusernews`, seguindo `g_BlotterNextLoadURL`/`next_request`), cada item com o rótulo do dia ("Hoje", "12 de nov."). Junta as compras que a Web API trouxe, já que a página não mostra mais compras de amigos. Só leitura; alimenta a aba Atividade da tela Steam da GAIA.
+
 ## [0.6.1] - 2026-11-13
 
 ### Corrigido

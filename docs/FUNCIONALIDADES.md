@@ -33,7 +33,7 @@ Checada a cada 20 minutos (a GAIA pede), por duas fontes. Devolve só o que é n
 - **Web API oficial, sem login:** compras novas de todos os amigos e da família (exige a lista de amigos pública no seu perfil e a biblioteca de cada pessoa pública) e anúncios oficiais dos jogos que você jogou nas últimas duas semanas. Só a família ganha destaque.
 - **Página de atividade logada:** primeiras partidas e conquistas de amigos (com o nome das conquistas), adições à wishlist de amigos, além de compras e anúncios, cada um com o link do jogo. Usa o login por QR.
 
-Também atende o resumo diário e o pedido "manda o relatório da Steam", que devolvem o estado atual sem mexer no que já foi visto. Sem página logada, eles usam o que a Web API já trouxe.
+Também devolve o feed dos últimos dias (até 7), para a tela Steam da GAIA listar, e atende o resumo diário e o pedido "manda o relatório da Steam", que devolvem o estado atual sem mexer no que já foi visto. Sem página logada, eles usam o que a Web API já trouxe.
 
 ## Família
 
