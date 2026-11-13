@@ -61,6 +61,35 @@ class RedirecionadorLog:
                     pass
 
 
+DIAS_GUARDAR_LOGS = 30
+
+
+def limpar_logs_antigos(pasta_projeto, dias=DIAS_GUARDAR_LOGS):
+    """Apaga `logs/AAAA-MM-DD.log` com mais de `dias` dias. Roda na
+    inicialização; sem isso a pasta crescia para sempre."""
+    pasta_logs = os.path.join(pasta_projeto, "logs")
+    if not os.path.isdir(pasta_logs):
+        return 0
+    limite = datetime.date.today() - datetime.timedelta(days=dias)
+    apagados = 0
+    for nome in os.listdir(pasta_logs):
+        base, ext = os.path.splitext(nome)
+        if ext != ".log":
+            continue
+        try:
+            data_arquivo = datetime.date.fromisoformat(base)
+        except ValueError:
+            continue  # arquivo com outro nome: não é deste rotacionador
+        if data_arquivo < limite:
+            try:
+                os.remove(os.path.join(pasta_logs, nome))
+                apagados += 1
+            except OSError:
+                pass
+    return apagados
+
+
 def ativar(pasta_projeto):
+    limpar_logs_antigos(pasta_projeto)
     sys.stdout = RedirecionadorLog(sys.stdout, pasta_projeto)
     sys.stderr = RedirecionadorLog(sys.stderr, pasta_projeto)

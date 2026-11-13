@@ -14,9 +14,10 @@ cada evento.
 """
 import os
 import re
-import json
 import threading
 import requests
+
+from hestia.armazenamento import ler_json, gravar_json
 
 ARQUIVO_FAMILIA = "data/familia.json"
 # 🔥 SteamID64 = accountid + esse offset fixo (base do universo público "1"
@@ -82,19 +83,11 @@ def _accountid_de(steamid64):
 
 
 def _carregar():
-    if not os.path.exists(ARQUIVO_FAMILIA):
-        return []
-    try:
-        with open(ARQUIVO_FAMILIA, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return []
+    return ler_json(ARQUIVO_FAMILIA, [])
 
 
 def _salvar(lista):
-    os.makedirs(os.path.dirname(ARQUIVO_FAMILIA), exist_ok=True)
-    with open(ARQUIVO_FAMILIA, "w", encoding="utf-8") as f:
-        json.dump(lista, f, ensure_ascii=False, indent=2)
+    gravar_json(ARQUIVO_FAMILIA, lista)
 
 
 def listar_familia():

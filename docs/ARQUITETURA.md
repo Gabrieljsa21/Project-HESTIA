@@ -159,16 +159,16 @@ ganhou seu próprio bracket, que só é consumido no dia exato (`0 <=
 dias_restantes <= 0` só é verdadeiro quando `dias_restantes == 0`),
 independente do bracket `1` já ter disparado no dia anterior. Validado
 simulando a contagem completa (30 -> 0): cada bracket dispara exatamente
-uma vez, sem duplicar nem pular o dia 0. Sem suíte de testes automatizada
+uma vez, sem duplicar nem pular o dia 0. Sem suíte de testes automatizada (até a 0.3.1)
 neste repo (nenhuma existe ainda) - validado só por simulação direta e
 pelos dados reais de produção.
 
-**Limitação residual conhecida**: se a checagem diária for pulada
-EXATAMENTE no dia do lançamento (processo desligado, etc.) e a flag
-`coming_soon` também não tiver mudado até a próxima checagem, o aviso
-ainda pode ser perdido (`dias_restantes` já negativo não casa bracket
-nenhum). Não corrigido - janela bem mais estreita que o bug relatado
-(exige os dois problemas ao mesmo tempo), fora do escopo do relato atual.
+**Limitação residual (corrigida na 0.3.1)**: se a checagem diária fosse
+pulada exatamente no dia do lançamento e a flag `coming_soon` não mudasse
+até a checagem seguinte, `dias_restantes` negativo não casava faixa
+nenhuma e o aviso se perdia. Agora, com `coming_soon` ainda verdadeiro e
+data no passado, sai um aviso único de "tinha lançamento marcado para
+dd/mm", que consome a faixa `0`.
 
 ## Varredura em segundo plano e fila confirmada (0.3.0, 2026-11-12)
 
@@ -204,6 +204,27 @@ HTTP 500; cliente que desistiu vira uma linha de log. Estado da wishlist,
 fila e data passam por `hestia/armazenamento.py` (gravação atômica com
 `.bak`), para uma queda de energia no meio da gravação não zerar a wishlist
 e fazer tudo parecer "primeira vez".
+
+## Pendências da análise de 2026-11-09 (0.3.1, 2026-11-13)
+
+- **Transições independentes**: lançamento, Free to Play e saída do
+  Acesso Antecipado deixaram de ser uma cadeia `elif` em
+  `verificar_lancamentos`. A saída do Acesso Antecipado só fica de fora
+  quando o jogo acabou de lançar, para não repetir o mesmo fato.
+- **Vistos em ordem**: `atividade._carregar_vistos` devolve uma lista em
+  ordem de chegada. Cada checagem move para o fim as chaves que ainda estão
+  na página, então o corte em `MAX_VISTOS_GUARDADOS` só descarta o que
+  saiu da página há mais tempo.
+- **Gravação segura em todo `data/`**: atividade e família também passam
+  por `hestia/armazenamento.py`.
+- **Cache de busca**: `search_ddg` guarda `{"resposta", "resultados"}` e
+  aceita o formato antigo (só texto). O cache já era apagado a cada
+  inicialização; o ganho é dentro de uma mesma execução.
+- **Logs**: `runtime_log.limpar_logs_antigos` apaga `logs/AAAA-MM-DD.log`
+  com mais de 30 dias ao iniciar.
+- **Testes**: `tests/` com pytest. Rede e calendário são trocados por
+  dublês; cada teste roda numa pasta temporária, já que os caminhos de
+  `data/` são relativos à pasta atual.
 
 ## Contrato HTTP (`hestia/api_bridge.py`, porta 8770)
 

@@ -7,6 +7,27 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-13
+
+### Corrigido
+
+- **Lançamento no dia em que a varredura não rodou passava sem aviso.** Se a Steam ainda mostra "em breve" e a data já passou, o HESTIA avisa uma vez que o jogo tinha lançamento marcado para aquele dia.
+- **Duas mudanças no mesmo jogo no mesmo dia geravam um aviso só.** Lançamento, Free to Play e saída do Acesso Antecipado eram uma cadeia `elif`; agora cada um é checado por conta própria.
+- **Evento recente da atividade podia voltar como novo.** A lista de "já vistos" era um `set` cortado em 300 itens em ordem aleatória; agora é uma lista em ordem de chegada, e o que continua na página vai para o fim.
+- **Cache da busca de guia de conquista pulava fontes boas.** O cache guardava só o texto, e um acerto devolvia lista vazia para a validação do jogo; agora guarda também os resultados.
+- **Cópias `.bak` da gravação segura apareciam no `git status`.** `.gitignore` passou a ignorar `data/*.bak` e `data/*.tmp`.
+
+### Alterado
+
+- Atividade (vistos, status da sessão, resumo diário) e família passaram a usar a gravação segura de `hestia/armazenamento.py`.
+- Logs em `logs/` com mais de 30 dias são apagados ao iniciar.
+
+### Adicionado
+
+- Testes automatizados (`tests/`, 15 casos): regras de aviso da wishlist, fila confirmada, gravação segura, lista de vistos, cache de busca e limpeza de logs.
+- `docs/FUNCIONALIDADES.md` com o que o HESTIA entrega hoje, e `CLAUDE.md` com as convenções do repositório.
+- `docs/TODO.md` no padrão Prioridade, Complexidade e Status.
+
 ## [0.3.0] - 2026-11-12
 
 ### Corrigido

@@ -1,6 +1,6 @@
 [project]
 name = "hestia"
-version = "0.3.0"
+version = "0.3.1"
 description = "Assistente de Steam da GAIA (lançamentos da wishlist, atividade de amigos, conquistas) - processo próprio, sem interface gráfica, consumido pela GAIA via HTTP."
 requires-python = ">=3.11"
 dependencies = [
@@ -11,6 +11,12 @@ dependencies = [
     "python-dotenv",
     "browser-cookie3>=0.19",
 ]
+
+[project.optional-dependencies]
+teste = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["setuptools>=68"]

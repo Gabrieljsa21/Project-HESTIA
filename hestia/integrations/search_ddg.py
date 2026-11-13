@@ -59,15 +59,20 @@ def search_ddg(query, retornar_detalhes=False):
     resultados é a lista estruturada [{"titulo", "corpo", "link"}, ...] de cada item,
     pra quem quer VALIDAR qual resultado é relevante (ex.: confirmar que fala do jogo
     certo, não só que bateu algum termo da busca) antes de decidir qual link seguir -
-    ver hestia/core/conquistas.py. Em cache hit não recalcula os resultados (não foram
-    salvos de novo nessa chamada) - volta lista vazia, quem chamou cai de volta pro
-    resumo só."""
+    ver hestia/core/conquistas.py. O cache guarda a resposta E os resultados
+    estruturados (2026-11-12, HESTIA 0.3.1): antes guardava só o texto, e um
+    acerto de cache devolvia lista vazia, então `buscar_guia_conquista` não
+    conseguia validar o jogo e pulava para a próxima fonte mesmo tendo um
+    resultado bom."""
     def devolver(resposta, resultados):
         return (resposta, resultados) if retornar_detalhes else resposta
 
     history = load_history()
     if query in history:
-        return devolver(history[query], [])
+        guardado = history[query]
+        if isinstance(guardado, dict):
+            return devolver(guardado.get("resposta", ""), guardado.get("resultados", []))
+        return devolver(guardado, [])  # formato antigo (só texto)
 
     try:
         with DDGS() as ddgs:
@@ -91,7 +96,7 @@ def search_ddg(query, retornar_detalhes=False):
 
         answer = "\n".join(formatted)
         save_links(query, links)
-        history[query] = answer
+        history[query] = {"resposta": answer, "resultados": estruturados}
         save_history(history)
         return devolver(answer, estruturados)
 

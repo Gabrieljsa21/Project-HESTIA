@@ -29,7 +29,6 @@ autocura também falhar.
 """
 
 import os
-import json
 import hashlib
 import secrets
 import threading
@@ -38,6 +37,7 @@ import browser_cookie3
 from bs4 import BeautifulSoup
 
 from hestia.core import familia
+from hestia.armazenamento import ler_json, gravar_json
 
 ARQUIVO_VISTOS = "data/atividade_vista.json"
 ARQUIVO_SESSAO_STATUS = "data/atividade_sessao_status.json"
@@ -81,20 +81,15 @@ def _chave(*partes):
 
 
 def _carregar_vistos():
-    if not os.path.exists(ARQUIVO_VISTOS):
-        return set()
-    try:
-        with open(ARQUIVO_VISTOS, "r", encoding="utf-8") as f:
-            return set(json.load(f))
-    except Exception:
-        return set()
+    """Lista em ordem de chegada (mais antigo primeiro). Antes era um `set`,
+    e o corte em `MAX_VISTOS_GUARDADOS` descartava chaves em ordem
+    aleatória: um evento recente podia sair da lista e voltar a ser
+    notificado como novo."""
+    return list(ler_json(ARQUIVO_VISTOS, []))
 
 
 def _salvar_vistos(vistos):
-    lista = list(vistos)[-MAX_VISTOS_GUARDADOS:]
-    os.makedirs(os.path.dirname(ARQUIVO_VISTOS), exist_ok=True)
-    with open(ARQUIVO_VISTOS, "w", encoding="utf-8") as f:
-        json.dump(lista, f, ensure_ascii=False)
+    gravar_json(ARQUIVO_VISTOS, vistos[-MAX_VISTOS_GUARDADOS:], indent=None)
 
 
 def _buscar_html():
@@ -153,13 +148,7 @@ def _validar_sessao(html):
 
 
 def _carregar_status_bruto():
-    if not os.path.exists(ARQUIVO_SESSAO_STATUS):
-        return {}
-    try:
-        with open(ARQUIVO_SESSAO_STATUS, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+    return ler_json(ARQUIVO_SESSAO_STATUS, {})
 
 
 def _marcar_status_sessao(valida_desta_tentativa):
@@ -173,9 +162,7 @@ def _marcar_status_sessao_sem_lock(valida_desta_tentativa):
     else:
         falhas = _carregar_status_bruto().get("falhas_consecutivas", 0) + 1
         novo = {"valida": falhas < LIMITE_FALHAS_CONSECUTIVAS_SESSAO, "falhas_consecutivas": falhas}
-    os.makedirs(os.path.dirname(ARQUIVO_SESSAO_STATUS), exist_ok=True)
-    with open(ARQUIVO_SESSAO_STATUS, "w", encoding="utf-8") as f:
-        json.dump(novo, f)
+    gravar_json(ARQUIVO_SESSAO_STATUS, novo, indent=None)
 
 
 def obter_status_sessao():
@@ -321,8 +308,13 @@ def verificar_novidades_steam():
         with _lock_arquivos:
             primeira_vez = not os.path.exists(ARQUIVO_VISTOS)
             vistos = _carregar_vistos()
-            novos = [e for e in eventos if e["chave"] not in vistos]
-            vistos.update(e["chave"] for e in eventos)
+            ja_vistos = set(vistos)
+            novos = [e for e in eventos if e["chave"] not in ja_vistos]
+            # Chave já vista vai para o fim (mais recente): continua na lista
+            # enquanto aparecer na página, em vez de envelhecer e ser cortada.
+            atuais = [e["chave"] for e in eventos]
+            atuais_set = set(atuais)
+            vistos = [c for c in vistos if c not in atuais_set] + list(dict.fromkeys(atuais))
             _salvar_vistos(vistos)
         if primeira_vez:
             # 🔥 Primeira checagem só estabelece a linha de base, não notifica - sem
@@ -357,16 +349,8 @@ def obter_ultima_checagem_diaria_resumo():
     verdade - mesmo padrão de lancamentos.py::obter_ultima_checagem_diaria
     (persistido em disco, não só em memória, pra sobreviver a reinícios e permitir
     catch-up se o processo esteve desligado na hora configurada)."""
-    if not os.path.exists(ARQUIVO_CHECAGEM_DIARIA_RESUMO):
-        return None
-    try:
-        with open(ARQUIVO_CHECAGEM_DIARIA_RESUMO, "r", encoding="utf-8") as f:
-            return json.load(f).get("ultima_data")
-    except Exception:
-        return None
+    return ler_json(ARQUIVO_CHECAGEM_DIARIA_RESUMO, {}).get("ultima_data")
 
 
 def salvar_ultima_checagem_diaria_resumo(data_str):
-    os.makedirs(os.path.dirname(ARQUIVO_CHECAGEM_DIARIA_RESUMO), exist_ok=True)
-    with open(ARQUIVO_CHECAGEM_DIARIA_RESUMO, "w", encoding="utf-8") as f:
-        json.dump({"ultima_data": data_str}, f, ensure_ascii=False, indent=2)
+    gravar_json(ARQUIVO_CHECAGEM_DIARIA_RESUMO, {"ultima_data": data_str})

@@ -51,6 +51,13 @@ O `.env.example` explica estas opções:
 
 Use `iniciar_hestia_oculto.vbs` para abrir sem terminal visível.
 
+Para rodar os testes:
+
+```powershell
+uv pip install -e ".[teste]"
+python -m pytest -q
+```
+
 ## Integrações com outros projetos
 
 - **GAIA:** define quando consultar os dados, apresenta os avisos por texto ou voz e sincroniza lançamentos com o Google Calendar.
@@ -61,6 +68,7 @@ A API local permite que outros clientes façam as mesmas consultas.
 
 ## Documentação
 
+- [Funcionalidades](docs/FUNCIONALIDADES.md)
 - [Arquitetura](docs/ARQUITETURA.md)
 - [Pendências](docs/TODO.md)
 - [Histórico de versões](CHANGELOG.md)
