@@ -54,6 +54,8 @@ def test_mesma_compra_nas_duas_fontes_avisa_uma_vez(monkeypatch):
     novos = atividade.verificar_novidades_steam()
     assert len(novos) == 1
     assert historico.listar(categoria="atividade")[0]["texto"] == "Ana comprou Jogo B na Steam."
+    assert novos[0]["tipo"] == "compra"
+    assert historico.listar(categoria="atividade")[0]["tipo"] == "compra"
 
 
 def test_lancamento_confirmado_vai_para_o_historico(monkeypatch):

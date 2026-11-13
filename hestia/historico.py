@@ -14,7 +14,8 @@ _lock = threading.Lock()
 
 
 def registrar(categoria, itens):
-    """`itens`: dicts com `texto` e, opcionais, `familia` e `link`."""
+    """`itens`: dicts com `texto` e, opcionais, `familia`, `link` e `tipo`
+    (o da atividade, 0.9.0; a GAIA filtra a aba Avisos por ele)."""
     if not itens:
         return
     agora = datetime.now().isoformat(timespec="seconds")
@@ -26,6 +27,7 @@ def registrar(categoria, itens):
                 "texto": item.get("texto", ""),
                 "familia": bool(item.get("familia")),
                 "link": item.get("link"),
+                "tipo": item.get("tipo"),
                 "em": item.get("em") or agora,
             })
         gravar_json(ARQUIVO, historico[-MAX_ITENS:])
