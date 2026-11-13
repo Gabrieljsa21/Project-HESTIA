@@ -19,12 +19,19 @@ def test_tela_de_login_nao_conta_como_sessao_valida():
     assert atividade._validar_sessao('<script>g_steamID = "76561198000000000";</script>') is True
 
 
-def _api_falsa(monkeypatch, bibliotecas):
-    """bibliotecas: lista de {appid: nome}, uma por chamada."""
+def _api_falsa(monkeypatch, bibliotecas, amigos=()):
+    """bibliotecas: lista de {appid: nome}, uma por chamada (só a família).
+    `amigos`: steamid64 de amigos fora da família, sem biblioteca pública."""
     respostas = iter(bibliotecas)
     monkeypatch.setattr(familia, "listar_familia", lambda: [{"steamid64": "765", "accountid": "42", "nome": "Ana"}])
-    monkeypatch.setattr(atividade_api, "_jogos_da_pessoa", lambda s: next(respostas))
+    monkeypatch.setattr(atividade_api, "_jogos_da_pessoa", lambda s: next(respostas) if s == "765" else None)
     monkeypatch.setattr(atividade_api, "_anuncios_dos_meus_jogos", lambda estado: [])
+
+    def _get_falso(url, **params):
+        if url == atividade_api.URL_AMIGOS:
+            return {"friendslist": {"friends": [{"steamid": a} for a in ("765", *amigos)]}}
+        return {"players": [{"steamid": a, "personaname": f"Amigo {a[-2:]}"} for a in amigos]}
+    monkeypatch.setattr(atividade_api, "_get", _get_falso)
 
 
 def test_compra_da_familia_pela_api(monkeypatch):
@@ -56,3 +63,35 @@ def test_lancamento_confirmado_vai_para_o_historico(monkeypatch):
     assert historico.listar() == []
     lancamentos.confirmar_eventos([pendente["id"]])
     assert historico.listar()[0]["texto"] == "X lança HOJE"
+
+
+def test_compra_de_amigo_fora_da_familia(monkeypatch):
+    amigo = "76561197960265800"
+    bibliotecas = {"765": iter([{"1": "A"}, {"1": "A"}]), amigo: iter([{"5": "X"}, {"5": "X", "6": "Y"}])}
+    _api_falsa(monkeypatch, [], amigos=(amigo,))
+    monkeypatch.setattr(atividade_api, "_jogos_da_pessoa", lambda s: next(bibliotecas[s]))
+    assert atividade_api.coletar_eventos() == []
+    eventos = atividade_api.coletar_eventos()
+    assert [(e["texto"], e["familia"], e["autor"]) for e in eventos] == [("Amigo 00 comprou Y na Steam.", False, "72")]
+
+
+def test_lista_de_amigos_privada_fica_so_a_familia(monkeypatch):
+    monkeypatch.setattr(familia, "listar_familia", lambda: [{"steamid64": "765", "accountid": "42", "nome": "Ana"}])
+
+    def _get_privado(url, **params):
+        raise RuntimeError("401")
+    monkeypatch.setattr(atividade_api, "_get", _get_privado)
+    assert [p["steamid64"] for p in atividade_api._pessoas_acompanhadas()] == ["765"]
+
+
+def test_pagina_que_volta_nao_despeja_o_passado(monkeypatch):
+    _api_falsa(monkeypatch, [{"1": "A"}] * 3)
+    monkeypatch.setattr(atividade, "_buscar_html", lambda: None)
+    atividade.verificar_novidades_steam()  # linha de base, sem página
+    atividade.verificar_novidades_steam()  # página ainda fora
+    antigos = [{"chave": f"k{i}", "texto": f"antigo {i}", "familia": False} for i in range(5)]
+    monkeypatch.setattr(atividade, "_buscar_html", lambda: "html")
+    monkeypatch.setattr(atividade, "_extrair_eventos", lambda html: list(antigos))
+    assert atividade.verificar_novidades_steam() == []
+    antigos.insert(0, {"chave": "novo", "texto": "novo", "familia": False})
+    assert [e["chave"] for e in atividade.verificar_novidades_steam()] == ["novo"]

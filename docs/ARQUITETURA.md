@@ -249,8 +249,15 @@ Web API com a chave que o HESTIA já tinha:
   `steam_community_announcements`) dos até 10 jogos de
   `GetRecentlyPlayedGames` do usuário; jogo novo na lista só grava base.
 
-Amigos fora da família ficam só com a página logada: a lista de amigos do
-usuário responde 401 na API (privada).
+Amigos fora da família ficavam só com a página logada: a lista de amigos
+do usuário respondia 401 na API (privada). **0.5.0 (mesmo dia)**: o usuário
+deixou a lista pública, e `_pessoas_acompanhadas` passou a juntar família e
+amigos (`ISteamUser/GetFriendList`, nomes por `GetPlayerSummaries` em lotes
+de 100, accountid calculado pelo offset do SteamID64). Compras de qualquer
+amigo com biblioteca pública chegam sem login (36 de 42, cerca de 20 s por
+checagem); só a família ganha destaque. Se a lista voltar a ser privada, o
+401 é tratado e fica só a família. Primeiras partidas e conquistas de
+amigos continuam só na página logada.
 
 As duas fontes geram a mesma chave para o mesmo fato (`_chave` normaliza
 caixa e espaços; compra = accountid + nome do jogo; anúncio = nome do jogo

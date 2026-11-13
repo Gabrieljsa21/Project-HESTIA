@@ -7,6 +7,17 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-13
+
+### Adicionado
+
+- **Compras de todos os amigos pela Web API, sem login.** Com a lista de amigos pública no perfil, o HESTIA lê a biblioteca de cada amigo (`GetFriendList` + `GetOwnedGames`, nomes por `GetPlayerSummaries`) e avisa jogo novo de qualquer um, com destaque só para a família. Em 2026-11-13: 42 amigos, 36 com biblioteca pública, cerca de 20 s por checagem. Com a lista privada, continua só a família.
+- Testes para compra de amigo fora da família, lista de amigos privada e volta da página logada (22 casos no total).
+
+### Corrigido
+
+- **Volta da página logada não despeja mais o passado.** Na primeira leitura da página depois de um período sem login, o que ela mostra dos últimos dias só entra nos "vistos"; antes iria tudo de uma vez como novidade.
+
 ## [0.4.0] - 2026-11-13
 
 ### Corrigido
