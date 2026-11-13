@@ -16,7 +16,7 @@ import traceback
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from hestia.core import atividade, lancamentos, conquistas, familia
+from hestia.core import atividade, lancamentos, conquistas, familia, sessao_steam
 from hestia import historico
 
 LOCAL_API_HOST = "127.0.0.1"
@@ -100,6 +100,8 @@ class _API(BaseHTTPRequestHandler):
             self._responder_json(conquistas.buscar_guia_conquista(jogo, conquista_pedida))
         elif caminho == "/familia":
             self._responder_json(familia.listar_familia())
+        elif caminho == "/sessao/login_qr":
+            self._responder_json(sessao_steam.status_login_qr())
         elif caminho == "/status":
             status_lancamentos = lancamentos.obter_status_varredura()
             status_lancamentos["pendentes"] = len(status_lancamentos.pop("eventos"))
@@ -124,6 +126,11 @@ class _API(BaseHTTPRequestHandler):
             self._responder_json(lancamentos.iniciar_varredura())
         elif caminho == "/lancamentos/confirmar":
             self._responder_json(lancamentos.confirmar_eventos(_ler_corpo_json(self).get("ids", [])))
+        elif caminho == "/sessao/login_qr":
+            self._responder_json(sessao_steam.iniciar_login_qr())
+        elif caminho == "/sessao/desconectar":
+            sessao_steam.desconectar()
+            self._responder_ok()
         elif caminho == "/atividade/renovar_sessao":
             self._responder_json(atividade.renovar_sessao_via_navegador())
         elif caminho == "/familia":

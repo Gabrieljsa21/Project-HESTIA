@@ -270,6 +270,36 @@ caixa e espaços; compra = accountid + nome do jogo; anúncio = nome do jogo
 atividade (`data/atividade_ultima_checagem.json`). Os dois alimentam a
 tela Steam do Painel da GAIA.
 
+## Login por QR code (0.6.0, 2026-11-13)
+
+A autocura pelo cookie do navegador deixou de funcionar: Edge, Chrome e
+Brave cifram cookies com uma chave presa ao próprio navegador
+(`app_bound_encrypted_key` no `Local State`). Com o navegador aberto o
+arquivo fica travado (pede administrador); fechado, o `browser_cookie3`
+responde "Unable to get key for cookie decryption". Ler o cookie do cliente
+Steam (`%LOCALAPPDATA%\Steam\htmlcache`) também esbarra no arquivo
+travado.
+
+`sessao_steam.py` faz o mesmo login por QR da tela de entrada do site:
+
+1. `IAuthenticationService/BeginAuthSessionViaQR` (campos de formulário
+   simples, `platform_type=2`, navegador) devolve `client_id`,
+   `request_id` e o `challenge_url` que vira o QR (`segno`).
+2. Uma thread consulta `PollAuthSessionStatus` a cada `interval` segundos
+   por até 3 minutos, até vir `refresh_token` e `access_token`.
+3. Tokens cifrados com DPAPI (`win32crypt.CryptProtectData`), só esta
+   conta do Windows abre.
+4. O cookie é `<steamid>%7C%7C<access_token>`. O acesso dura cerca de 24 h;
+   faltando menos de 30 min, `_renovar_acesso` posta o `refresh_token` como
+   `nonce` em `login.steampowered.com/jwt/finalizelogin` e segue o
+   `transfer_info` da Community (`/login/settoken`), que devolve o cookie
+   novo. `GenerateAccessTokenForApp` recusa token de navegador (eresult 15).
+   Se a renovação falhar, o acesso atual vale até vencer.
+
+O `refresh_token` não gira por esse fluxo e vence em cerca de 200 dias
+(o primeiro, de 2026-11-13, em 11/06/2027); aí é escanear de novo. A GAIA
+mostra a validade na aba Status da tela Steam.
+
 ## Contrato HTTP (`hestia/api_bridge.py`, porta 8770)
 
 - `POST /lancamentos/varrer` - dispara a varredura da wishlist numa thread
@@ -304,6 +334,11 @@ tela Steam do Painel da GAIA.
 - `POST /familia` (`{"perfil": "url ou vanity/steamid"}`) - resolve e
   adiciona; devolve a entrada criada ou `{"erro": "..."}`.
 - `POST /familia/remover` (`{"accountid": "..."}`) - remove da lista.
+- `POST /sessao/login_qr` - abre um QR novo: `{"qr_png" (base64),
+  "url", "expira_em_s"}`.
+- `GET /sessao/login_qr` - `{"estado": "nenhum|aguardando|escaneado|
+  aprovado|expirado", "conta"}`.
+- `POST /sessao/desconectar` - apaga o login por QR.
 - `GET /atividade/sessao_valida` - `{"valida": true/false/null}` (`null` =
   nenhuma checagem real rodou ainda).
 - `POST /atividade/renovar_sessao` - tenta pegar um cookie fresco do
