@@ -108,3 +108,20 @@ def test_linha_de_conquista_traz_os_nomes(monkeypatch):
     evento = atividade._extrair_eventos(html)[0]
     assert evento["texto"] == "Ana (Aninha) conquistou em Jogo: Primeira, Segunda"
     assert evento["link"] == "https://store.steampowered.com/app/123"
+
+
+def test_feed_recente_junta_dias_e_compras_da_api(monkeypatch):
+    monkeypatch.setattr(familia, "accountids_familia", lambda: set())
+    linha = '<div class="blotter_daily_rollup_line"><span><a data-miniprofile="7" href="x">Ana</a> jogou <a href="https://steamcommunity.com/app/1">J</a> pela primeira vez.</span></div>'
+    hoje = f'<div class="blotter_day">{linha}</div>' + "<script>g_BlotterNextLoadURL = 'https://x/ajaxgetusernews/?start=1';</script>"
+    ontem = f'<div class="blotter_day"><div class="blotter_day_header_date">12 de nov.</div>{linha}</div>'
+    monkeypatch.setattr(atividade, "_buscar_html", lambda: hoje)
+
+    class Resp:
+        def json(self):
+            return {"blotter_html": ontem, "next_request": None}
+    monkeypatch.setattr(atividade, "_get_logado", lambda url, cookie: Resp())
+    historico.registrar("atividade", [{"texto": "Bia comprou X na Steam.", "familia": True}])
+    itens = atividade.obter_atividade_recente(2)
+    assert [i["dia"] for i in itens][1:] == ["Hoje", "12 de nov."]
+    assert itens[0]["texto"] == "Bia comprou X na Steam." and itens[0]["familia"] is True

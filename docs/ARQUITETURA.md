@@ -317,6 +317,10 @@ mostra a validade na aba Status da tela Steam.
 - `GET /atividade/verificar` - novidades da página de atividade desde a
   última checagem.
 - `GET /atividade/atual?limite=N` - estado atual, sem alterar o "já visto".
+- `GET /atividade/recente?dias=N` - feed dos últimos `N` dias (até 7), um
+  pedido por dia (`ajaxgetusernews`), com `dia`, `texto`, `familia`, `link`;
+  inclui as compras da Web API (a página não mostra mais compras de amigos,
+  conferido em 2026-11-13). Só leitura.
 - `GET`/`POST /atividade/ultima_checagem_diaria` - catch-up do resumo
   diário.
 - `GET /conquistas/<appid>?nome_conhecido=X` - appid SEMPRE numérico (ver
