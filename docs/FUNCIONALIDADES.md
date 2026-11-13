@@ -41,7 +41,7 @@ Lista de pessoas cadastradas pelo link do perfil Steam. Eventos de atividade del
 
 ## Sessão da Steam
 
-Detecta quando o cookie de login expira (duas leituras seguidas da tela de login, reconhecida por `g_steamID = false`) e tenta renovar sozinho lendo o cookie do Edge, Chrome ou Firefox já logados. Nunca pede senha nem código.
+O HESTIA tem login próprio na Steam: a GAIA mostra um QR code, você aprova no app da Steam do celular, e o login vale cerca de 200 dias, renovado sozinho a cada dia. Nenhuma senha passa pelo HESTIA, e os tokens ficam cifrados para a sua conta do Windows. Detecta quando a sessão cai (duas leituras seguidas da tela de login, reconhecida por `g_steamID = false`). Copiar o login do navegador ficou só como reserva, porque Edge, Chrome e Brave não deixam mais ler os cookies.
 
 ## Histórico e status
 

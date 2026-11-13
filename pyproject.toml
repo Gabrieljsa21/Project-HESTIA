@@ -1,6 +1,6 @@
 [project]
 name = "hestia"
-version = "0.5.0"
+version = "0.6.0"
 description = "Assistente de Steam da GAIA (lançamentos da wishlist, atividade de amigos, conquistas) - processo próprio, sem interface gráfica, consumido pela GAIA via HTTP."
 requires-python = ">=3.11"
 dependencies = [
@@ -10,6 +10,8 @@ dependencies = [
     "youtube-transcript-api",
     "python-dotenv",
     "browser-cookie3>=0.19",
+    "segno>=1.6",
+    "pywin32>=306",
 ]
 
 [project.optional-dependencies]

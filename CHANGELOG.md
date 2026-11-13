@@ -7,6 +7,18 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-13
+
+### Adicionado
+
+- **Login próprio na Steam por QR code** (`hestia/core/sessao_steam.py`). O usuário aprova no app da Steam do celular; o HESTIA guarda o `refresh_token` (cerca de 200 dias) e o `access_token` cifrados com DPAPI em `data/sessao_steam.json` e renova o acesso sozinho pelo fluxo de login web (`jwt/finalizelogin` + `settoken`). A página de atividade passa a usar esse login, com o cookie do `.env` como reserva. Endpoints `POST`/`GET /sessao/login_qr` e `POST /sessao/desconectar`; `GET /status` traz `login_qr` (conectada, conta, validade).
+- Dependências `segno` (QR em PNG) e `pywin32` (DPAPI).
+- Testes do login por QR (aprovação, QR expirado, renovação, falha de renovação): 27 casos no total.
+
+### Alterado
+
+- A autocura pelo cookie do navegador fica só como reserva: Edge, Chrome e Brave passaram a cifrar cookies com uma chave presa ao navegador (`app_bound_encrypted_key`), e o `browser_cookie3` não consegue mais abrir (testado com o Edge fechado).
+
 ## [0.5.0] - 2026-11-13
 
 ### Adicionado

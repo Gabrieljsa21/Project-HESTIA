@@ -5,6 +5,7 @@ Serviço da Steam (wishlist, atividade, conquistas) sem interface, atrás de uma
 ## Ao mudar o código
 
 - Contrato HTTP (rota, campo, formato) mudou: a PR da GAIA que acompanha sobe junto e os dois processos são reiniciados juntos. Um lado novo com o outro antigo perde os avisos daquele dia.
+- `data/sessao_steam.json` guarda o login da Steam cifrado com DPAPI: nunca imprimir nem logar os tokens abertos.
 - Arquivo em `data/`: ler e gravar por `hestia/armazenamento.py` (`ler_json`/`gravar_json`). Leitura-e-regravação de um mesmo arquivo fica sob o lock do módulo: o servidor atende cada requisição numa thread.
 - Caminhos de `data/`, `cache/` e `logs/` são relativos à pasta atual: rodar sempre da raiz do repositório.
 - Fontes de dado da Steam: só API oficial, mais a página de atividade logada. Raspar a loja para corrigir a data de lançamento foi recusado pelo usuário (ver `docs/ARQUITETURA.md`, "Limitação conhecida").

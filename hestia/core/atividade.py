@@ -38,7 +38,7 @@ import requests
 import browser_cookie3
 from bs4 import BeautifulSoup
 
-from hestia.core import familia, atividade_api
+from hestia.core import familia, atividade_api, sessao_steam
 from hestia import historico
 from hestia.armazenamento import ler_json, gravar_json
 
@@ -99,7 +99,9 @@ def _salvar_vistos(vistos):
 
 
 def _buscar_html():
-    cookie = os.getenv("STEAM_LOGIN_SECURE")
+    # Login próprio por QR (sessao_steam.py, 0.6.0) primeiro; o cookie copiado
+    # do navegador no `.env` fica só como reserva.
+    cookie = sessao_steam.obter_cookie() or os.getenv("STEAM_LOGIN_SECURE")
     url = os.getenv("STEAM_PERFIL_URL")
     if not cookie or not url:
         return None
@@ -404,6 +406,7 @@ def obter_status_atividade():
     tela de status da GAIA."""
     return {
         "sessao_valida": obter_status_sessao().get("valida"),
+        "login_qr": sessao_steam.situacao(),
         "ultima_checagem": ler_json(ARQUIVO_ULTIMA_CHECAGEM, None),
         "api_configurada": atividade_api.configurada(),
         "familia": len(familia.listar_familia()),
