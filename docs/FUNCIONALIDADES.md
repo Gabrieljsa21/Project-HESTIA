@@ -31,7 +31,7 @@ Lista dos jogos ainda não lançados da wishlist, ordenados por data, com o tipo
 Checada a cada 20 minutos (a GAIA pede), por duas fontes. Devolve só o que é novo, e o mesmo fato vindo das duas sai uma vez. A primeira leitura de cada fonte só marca o que já existia.
 
 - **Web API oficial, sem login:** compras novas de todos os amigos e da família (exige a lista de amigos pública no seu perfil e a biblioteca de cada pessoa pública) e anúncios oficiais dos jogos que você jogou nas últimas duas semanas. Só a família ganha destaque.
-- **Página de atividade logada:** primeiras partidas e conquistas de amigos (com o nome das conquistas), adições à wishlist de amigos, além de compras e anúncios, cada um com o link do jogo. Usa o login por QR.
+- **Página de atividade logada:** primeiras partidas e conquistas de amigos (com o nome das conquistas), adições à wishlist de amigos, além de compras e anúncios, cada um com o link do jogo, o tipo e o nome de quem fez (para os filtros da GAIA). Usa o login por QR.
 
 Também devolve o feed dos últimos dias (até 7), para a tela Steam da GAIA listar, e atende o resumo diário e o pedido "manda o relatório da Steam", que devolvem o estado atual sem mexer no que já foi visto. Sem página logada, eles usam o que a Web API já trouxe.
 
