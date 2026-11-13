@@ -95,3 +95,16 @@ def test_pagina_que_volta_nao_despeja_o_passado(monkeypatch):
     assert atividade.verificar_novidades_steam() == []
     antigos.insert(0, {"chave": "novo", "texto": "novo", "familia": False})
     assert [e["chave"] for e in atividade.verificar_novidades_steam()] == ["novo"]
+
+
+def test_linha_de_conquista_traz_os_nomes(monkeypatch):
+    monkeypatch.setattr(familia, "accountids_familia", lambda: set())
+    html = (
+        '<div class="blotter_daily_rollup_line"><span>'
+        '<a data-miniprofile="7" href="x">Ana <span>(<span>Aninha</span>)</span></a> conquistou em '
+        '<a href="https://steamcommunity.com/app/123">Jogo</a>:</span>'
+        '<img title="Primeira&#10;Descrição"/><img title="Segunda&#10;Outra"/></div>'
+    )
+    evento = atividade._extrair_eventos(html)[0]
+    assert evento["texto"] == "Ana (Aninha) conquistou em Jogo: Primeira, Segunda"
+    assert evento["link"] == "https://store.steampowered.com/app/123"

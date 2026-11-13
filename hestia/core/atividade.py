@@ -299,10 +299,27 @@ def _extrair_eventos(html):
         appid = link_jogo["href"].rstrip("/").split("/")[-1] if link_jogo else ""
         autor_tag = linha.select_one("a[data-miniprofile]")
         id_autor = autor_tag.get("data-miniprofile") if autor_tag else texto_linha[:30]
+        # A chave usa o texto cru (sem os nomes abaixo), para não mudar a
+        # identidade de eventos já vistos.
+        chave = _chave("rollup", id_autor, appid, texto_linha[:80])
+        texto_exibido = " ".join(texto_linha.split())
+        for antes, depois in ((" ,", ","), (" :", ":"), ("( ", "("), (" )", ")")):
+            texto_exibido = texto_exibido.replace(antes, depois)
+        # 🔥 Nome das conquistas (2026-11-13, 0.6.1): na linha de conquista o
+        # texto acaba em "conquistou em Jogo:" e os nomes ficam só no `title`
+        # das imagens ao lado (nome na primeira linha, descrição na segunda).
+        # Sem isto o aviso saía sem dizer qual conquista foi.
+        conquistas = [img.get("title", "").splitlines()[0].strip() for img in linha.select("img[title]") if img.get("title")]
+        conquistas = [c for c in conquistas if c]
+        if conquistas:
+            texto_exibido = texto_exibido.rstrip(":").rstrip() + ": " + ", ".join(conquistas[:3])
+            if len(conquistas) > 3:
+                texto_exibido += f" e mais {len(conquistas) - 3}"
         eventos.append({
-            "chave": _chave("rollup", id_autor, appid, texto_linha[:80]),
-            "texto": texto_linha,
+            "chave": chave,
+            "texto": texto_exibido,
             "familia": id_autor in familia_ids,
+            "link": f"https://store.steampowered.com/app/{appid}" if appid else None,
         })
 
     return eventos
