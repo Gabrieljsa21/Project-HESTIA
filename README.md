@@ -9,7 +9,7 @@ Serviço que acompanha a Steam, incluindo wishlist, lançamentos, atividade e co
 ## Recursos principais
 
 - avisa sobre lançamentos, DLCs, jogos gratuitos e saída de Acesso Antecipado;
-- acompanha compras, conquistas e anúncios na atividade da Steam;
+- acompanha compras, conquistas e anúncios na atividade da Steam, com compras da família e anúncios pela API oficial mesmo sem login;
 - destaca pessoas marcadas como família;
 - consulta o progresso de conquistas;
 - procura guias para destravar conquistas.
@@ -46,7 +46,7 @@ python -m hestia.main
 O `.env.example` explica estas opções:
 
 - `STEAM_ID64` para a wishlist;
-- `STEAM_WEBAPI_KEY` para conquistas;
+- `STEAM_WEBAPI_KEY` para conquistas, compras da família e anúncios;
 - `STEAM_LOGIN_SECURE` e `STEAM_PERFIL_URL` para a atividade.
 
 Use `iniciar_hestia_oculto.vbs` para abrir sem terminal visível.

@@ -35,6 +35,7 @@ from datetime import date, datetime
 
 import hestia.integrations.gaia_webhook as gaia_webhook
 from hestia.armazenamento import ler_json, gravar_json
+from hestia import historico
 
 ARQUIVO_ESTADO = "data/lancamentos_estado.json"
 INTERVALO_ENTRE_CHAMADAS_SEGUNDOS = 1.5
@@ -150,6 +151,7 @@ def _salvar_estado(estado):
 
 
 ARQUIVO_CHECAGEM_DIARIA = "data/lancamentos_checagem_diaria.json"
+ARQUIVO_ULTIMA_VARREDURA = "data/lancamentos_ultima_varredura.json"
 
 
 def obter_ultima_checagem_diaria():
@@ -315,6 +317,12 @@ def verificar_lancamentos(steamid=None):
         f" [SISTEMA] Varredura da wishlist: {len(appids_atuais)} itens, "
         f"{falhas} sem resposta da loja, {len(eventos)} aviso(s) novo(s)."
     )
+    gravar_json(ARQUIVO_ULTIMA_VARREDURA, {
+        "em": datetime.now().isoformat(timespec="seconds"),
+        "itens": len(appids_atuais),
+        "falhas": falhas,
+        "avisos": len(eventos),
+    })
     return eventos
 
 
@@ -379,6 +387,7 @@ def obter_status_varredura():
     return {
         "varrendo": _varrendo,
         "ultima_varredura_concluida": obter_ultima_checagem_diaria(),
+        "ultima_varredura": ler_json(ARQUIVO_ULTIMA_VARREDURA, None),
         "ultimo_erro": _ultimo_erro,
         "eventos": pendentes,
     }
@@ -392,6 +401,7 @@ def confirmar_eventos(ids):
         restantes = [p for p in pendentes if p.get("id") not in ids]
         if len(restantes) != len(pendentes):
             gravar_json(ARQUIVO_PENDENTES, restantes)
+            historico.registrar("lancamento", [p for p in pendentes if p.get("id") in ids])
     return {"removidos": len(pendentes) - len(restantes), "restantes": len(restantes)}
 
 
@@ -418,8 +428,9 @@ def obter_proximos_lancamentos(limite=10):
     Lista vazia se o cache ainda não existir (nenhuma checagem automática rodou ainda)."""
     estado = _carregar_estado()
     itens = [
-        {"nome": v["nome"], "data": v["data"], "tipo_lancamento": _rotulo_lancamento(v)}
-        for v in estado.values()
+        {"nome": v["nome"], "data": v["data"], "tipo_lancamento": _rotulo_lancamento(v),
+         "appid": appid, "link": f"https://store.steampowered.com/app/{appid}"}
+        for appid, v in estado.items()
         if v.get("coming_soon") and v.get("data")
     ]
     itens.sort(key=lambda i: i["data"])

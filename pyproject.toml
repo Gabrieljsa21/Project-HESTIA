@@ -1,6 +1,6 @@
 [project]
 name = "hestia"
-version = "0.3.1"
+version = "0.4.0"
 description = "Assistente de Steam da GAIA (lançamentos da wishlist, atividade de amigos, conquistas) - processo próprio, sem interface gráfica, consumido pela GAIA via HTTP."
 requires-python = ">=3.11"
 dependencies = [

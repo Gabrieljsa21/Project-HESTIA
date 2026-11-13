@@ -30,13 +30,16 @@ autocura também falhar.
 
 import os
 import hashlib
+import re
+from datetime import datetime
 import secrets
 import threading
 import requests
 import browser_cookie3
 from bs4 import BeautifulSoup
 
-from hestia.core import familia
+from hestia.core import familia, atividade_api
+from hestia import historico
 from hestia.armazenamento import ler_json, gravar_json
 
 ARQUIVO_VISTOS = "data/atividade_vista.json"
@@ -75,8 +78,11 @@ _lock_arquivos = threading.Lock()
 
 def _chave(*partes):
     """Chave estável e curta (hash) pra identificar um evento sem depender de timestamp
-    exato - a Steam agrupa atividade por DIA nos rollups, não por hora/minuto."""
-    texto = "|".join(str(p) for p in partes)
+    exato - a Steam agrupa atividade por DIA nos rollups, não por hora/minuto.
+    Partes normalizadas (minúsculas, espaços colapsados): a mesma compra ou o
+    mesmo anúncio vindo da página logada e da Web API (`atividade_api.py`)
+    gera a mesma chave e só é avisado uma vez."""
+    texto = "|".join(" ".join(str(p).lower().split()) for p in partes)
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()[:16]
 
 
@@ -138,13 +144,18 @@ def _buscar_html():
 LIMITE_FALHAS_CONSECUTIVAS_SESSAO = 2
 
 
+_RE_STEAMID_LOGADO = re.compile(r'g_steamID\s*=\s*"\d+"')
+
+
 def _validar_sessao(html):
-    """`g_steamID` é uma variável JS global que a Steam injeta em QUALQUER
-    página autenticada da Community, independente de idioma - ausência dela
-    é o sinal mais forte de "cookie expirado" (a página volta com `status
-    200` normal, só que é a TELA DE LOGIN, não o feed), mas não é 100%
-    confiável isolada (ver `LIMITE_FALHAS_CONSECUTIVAS_SESSAO` acima)."""
-    return "g_steamID" in html
+    """`g_steamID` é uma variável JS global que a Steam injeta em toda página
+    da Community, independente de idioma: com o número da conta quando há
+    login, e `g_steamID = false;` na tela de login. Até 2026-11-13 a checagem
+    era só "o texto g_steamID aparece", que a tela de login também satisfaz:
+    a sessão expirada passava por válida e ninguém era avisado (achado real,
+    o usuário ficou semanas sem atividade nenhuma). Ainda exige falhas
+    seguidas antes de declarar expirada (`LIMITE_FALHAS_CONSECUTIVAS_SESSAO`)."""
+    return bool(_RE_STEAMID_LOGADO.search(html or ""))
 
 
 def _carregar_status_bruto():
@@ -248,6 +259,7 @@ def _extrair_eventos(html):
         id_autor = autor_tag.get("data-miniprofile") if autor_tag else autor
         eventos.append({
             "chave": _chave("compra", id_autor, jogo),
+            "link": jogo_tag.get("href") if jogo_tag else None,
             "texto": f"{autor} comprou {jogo} na Steam.",
             "familia": id_autor in familia_ids,
         })
@@ -270,7 +282,8 @@ def _extrair_eventos(html):
         if corpo:
             texto += f" - resumo: {corpo}..."
         eventos.append({
-            "chave": _chave("anuncio", bloco.get("id")),
+            "chave": _chave("anuncio", jogo, titulo),
+            "link": titulo_tag.get("href") if titulo_tag else None,
             "texto": texto,
             "familia": False,  # anúncio é do jogo/grupo, não tem autor-amigo
         })
@@ -293,18 +306,44 @@ def _extrair_eventos(html):
     return eventos
 
 
-def verificar_novidades_steam():
-    """Busca a página, compara com o que já foi visto (arquivo local), e devolve só os
-    eventos NOVOS - já atualizando o arquivo de "vistos" com TODOS os eventos atuais
-    (novos ou não). Lista vazia se a chave não estiver configurada, a busca falhar, ou
-    não houver nada novo - nunca levanta exceção pro chamador não precisar de
-    try/except a cada checagem (a GAIA chama isso a cada 20min, ver `GET /atividade/
-    verificar` em hestia/api_bridge.py)."""
+ARQUIVO_ULTIMA_CHECAGEM = "data/atividade_ultima_checagem.json"
+
+
+def _eventos_da_api():
+    """Eventos da Web API (`atividade_api.py`) no mesmo formato da página."""
     try:
-        html = _buscar_html()
-        if not html:
-            return []
-        eventos = _extrair_eventos(html)
+        brutos = atividade_api.coletar_eventos()
+    except Exception as e:
+        print(f" [SISTEMA] Erro na atividade pela Web API: {e}")
+        return []
+    return [{
+        "chave": _chave(e["tipo"], e["autor"], e["alvo"]),
+        "texto": e["texto"],
+        "familia": e["familia"],
+        "link": e.get("link"),
+    } for e in brutos]
+
+
+def verificar_novidades_steam():
+    """Junta a página logada (se a sessão valer) e a Web API, compara com o que
+    já foi visto (arquivo local) e devolve só os eventos NOVOS - já atualizando
+    o arquivo de "vistos". Lista vazia se nada estiver configurado, a busca
+    falhar ou não houver nada novo - nunca levanta exceção (a GAIA chama isso
+    a cada 20min, ver `GET /atividade/verificar` em hestia/api_bridge.py)."""
+    try:
+        html = None
+        try:
+            html = _buscar_html()
+        except Exception as e:
+            print(f" [SISTEMA] Página de atividade indisponível: {e}")
+        eventos_pagina = _extrair_eventos(html) if html else []
+        eventos = eventos_pagina + _eventos_da_api()
+        gravar_json(ARQUIVO_ULTIMA_CHECAGEM, {
+            "em": datetime.now().isoformat(timespec="seconds"),
+            "eventos_pagina": len(eventos_pagina),
+            "eventos_api": len(eventos) - len(eventos_pagina),
+            "api_configurada": atividade_api.configurada(),
+        })
         with _lock_arquivos:
             primeira_vez = not os.path.exists(ARQUIVO_VISTOS)
             vistos = _carregar_vistos()
@@ -321,6 +360,9 @@ def verificar_novidades_steam():
             # isso, toda a atividade recente (pode ser 15-20 itens) seria avisada de
             # uma vez só na primeira vez que rodar com isso configurado.
             return []
+        # Mesma chave vinda das duas fontes no mesmo ciclo: avisa uma vez.
+        novos = list({e["chave"]: e for e in novos}.values())
+        historico.registrar("atividade", novos)
         return novos
     except Exception as e:
         print(f" [SISTEMA] Erro ao verificar atividade da Steam: {e}")
@@ -336,12 +378,28 @@ def obter_atividade_atual(limite=10):
     estiver configurada ou a busca falhar."""
     try:
         html = _buscar_html()
-        if not html:
-            return []
-        return _extrair_eventos(html)[:limite]
+        eventos = _extrair_eventos(html) if html else []
+        if eventos:
+            return eventos[:limite]
+        # Sem página logada: o que a Web API já trouxe e foi avisado.
+        return [
+            {"chave": "", "texto": h["texto"], "familia": h["familia"], "link": h.get("link")}
+            for h in historico.listar(limite, categoria="atividade")
+        ]
     except Exception as e:
         print(f" [SISTEMA] Erro ao obter atividade atual da Steam: {e}")
         return []
+
+
+def obter_status_atividade():
+    """Última checagem (horário e quantos eventos cada fonte trouxe), para a
+    tela de status da GAIA."""
+    return {
+        "sessao_valida": obter_status_sessao().get("valida"),
+        "ultima_checagem": ler_json(ARQUIVO_ULTIMA_CHECAGEM, None),
+        "api_configurada": atividade_api.configurada(),
+        "familia": len(familia.listar_familia()),
+    }
 
 
 def obter_ultima_checagem_diaria_resumo():
