@@ -7,6 +7,12 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-13
+
+### Corrigido
+
+- **Conquistas de amigos saíam sem o nome.** O feed mostrava "conquistou em Jogo:" e parava, porque os nomes ficam só no `title` das imagens ao lado do texto. Agora o aviso traz até três nomes ("e mais N" quando há outras), e cada linha de atividade ganha o link do jogo na loja. Espaços soltos em volta de vírgulas e apelidos também saem. A chave dos eventos não muda, então nada já visto é avisado de novo.
+
 ## [0.6.0] - 2026-11-13
 
 ### Adicionado
