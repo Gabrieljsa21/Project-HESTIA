@@ -17,6 +17,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from hestia.core import atividade, lancamentos, conquistas, familia
+from hestia import historico
 
 LOCAL_API_HOST = "127.0.0.1"
 LOCAL_API_PORT = 8770
@@ -99,6 +100,14 @@ class _API(BaseHTTPRequestHandler):
             self._responder_json(conquistas.buscar_guia_conquista(jogo, conquista_pedida))
         elif caminho == "/familia":
             self._responder_json(familia.listar_familia())
+        elif caminho == "/status":
+            status_lancamentos = lancamentos.obter_status_varredura()
+            status_lancamentos["pendentes"] = len(status_lancamentos.pop("eventos"))
+            self._responder_json({"lancamentos": status_lancamentos, "atividade": atividade.obter_status_atividade()})
+        elif caminho == "/avisos/historico":
+            limite = int((params.get("limite") or [50])[0])
+            categoria = (params.get("categoria") or [None])[0]
+            self._responder_json(historico.listar(limite, categoria))
         else:
             self._responder_404()
 

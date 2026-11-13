@@ -28,7 +28,12 @@ Lista dos jogos ainda não lançados da wishlist, ordenados por data, com o tipo
 
 ## Atividade da Steam
 
-Lê a página de atividade da conta logada a cada 20 minutos (a GAIA pede) e devolve só o que é novo: compras e primeiras partidas de amigos, conquistas, anúncios e notas de atualização dos jogos da biblioteca, adições à wishlist de amigos. A primeira leitura só marca o que já existia. Também atende o resumo diário e o pedido "manda o relatório da Steam", que devolvem o estado atual sem mexer no que já foi visto.
+Checada a cada 20 minutos (a GAIA pede), por duas fontes. Devolve só o que é novo, e o mesmo fato vindo das duas sai uma vez. A primeira leitura de cada fonte só marca o que já existia.
+
+- **Web API oficial, sem login:** compras novas de quem está na família (exige a biblioteca da pessoa pública) e anúncios oficiais dos jogos que você jogou nas últimas duas semanas.
+- **Página de atividade logada:** compras e primeiras partidas de todos os amigos, conquistas, anúncios, adições à wishlist de amigos. Para quando a sessão expira; a lista de amigos é privada para a API.
+
+Também atende o resumo diário e o pedido "manda o relatório da Steam", que devolvem o estado atual sem mexer no que já foi visto. Sem página logada, eles usam o que a Web API já trouxe.
 
 ## Família
 
@@ -36,7 +41,11 @@ Lista de pessoas cadastradas pelo link do perfil Steam. Eventos de atividade del
 
 ## Sessão da Steam
 
-Detecta quando o cookie de login expira (duas leituras seguidas da tela de login) e tenta renovar sozinho lendo o cookie do Edge, Chrome ou Firefox já logados. Nunca pede senha nem código.
+Detecta quando o cookie de login expira (duas leituras seguidas da tela de login, reconhecida por `g_steamID = false`) e tenta renovar sozinho lendo o cookie do Edge, Chrome ou Firefox já logados. Nunca pede senha nem código.
+
+## Histórico e status
+
+Guarda os 300 avisos mais recentes (lançamentos entregues e novidades de atividade) e expõe o estado do serviço: última varredura da wishlist com jogos lidos, falhas e avisos, fila pendente, última checagem de atividade e situação da sessão. A GAIA mostra os dois na tela Steam do Painel.
 
 ## Conquistas
 

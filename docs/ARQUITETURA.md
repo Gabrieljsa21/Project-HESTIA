@@ -226,6 +226,43 @@ e fazer tudo parecer "primeira vez".
   dublês; cada teste roda numa pasta temporária, já que os caminhos de
   `data/` são relativos à pasta atual.
 
+## Atividade pela Web API, histórico e status (0.4.0, 2026-11-13)
+
+Achado real: o usuário não recebia atividade nenhuma havia semanas. O
+cookie `STEAM_LOGIN_SECURE` tinha expirado, nenhum navegador tinha login
+da Steam para a autocura, e `_validar_sessao` dava a sessão por válida
+porque procurava só o texto `g_steamID`, presente também na tela de login
+(`g_steamID = false`). Corrigido para exigir `g_steamID = "<número>"`.
+
+Ler o cookie do cliente Steam (`%LOCALAPPDATA%\Steam\htmlcache`, formato
+Chromium) foi tentado e descartado: o arquivo fica travado com a Steam
+aberta e só sai com permissão de administrador.
+
+Para não depender de login no que mais importa, `atividade_api.py` usa a
+Web API com a chave que o HESTIA já tinha:
+
+- **compras da família**: `IPlayerService/GetOwnedGames` de cada pessoa
+  de `familia.py`; appid novo vira "Fulano comprou X". Exige biblioteca
+  pública. Primeira leitura de cada pessoa só grava a linha de base
+  (`data/atividade_api_estado.json`);
+- **anúncios**: `ISteamNews/GetNewsForApp` (feed
+  `steam_community_announcements`) dos até 10 jogos de
+  `GetRecentlyPlayedGames` do usuário; jogo novo na lista só grava base.
+
+Amigos fora da família ficam só com a página logada: a lista de amigos do
+usuário responde 401 na API (privada).
+
+As duas fontes geram a mesma chave para o mesmo fato (`_chave` normaliza
+caixa e espaços; compra = accountid + nome do jogo; anúncio = nome do jogo
++ título), então um evento vindo das duas é avisado uma vez.
+
+`historico.py` guarda o que já foi avisado (lançamentos no
+`confirmar_eventos`, atividade no `verificar_novidades_steam`), e
+`GET /status` junta o resumo da última varredura
+(`data/lancamentos_ultima_varredura.json`), a fila e a última checagem de
+atividade (`data/atividade_ultima_checagem.json`). Os dois alimentam a
+tela Steam do Painel da GAIA.
+
 ## Contrato HTTP (`hestia/api_bridge.py`, porta 8770)
 
 - `POST /lancamentos/varrer` - dispara a varredura da wishlist numa thread
@@ -236,7 +273,7 @@ e fazer tudo parecer "primeira vez".
 - `POST /lancamentos/confirmar` (`{"ids": [...]}`) - tira da fila os avisos
   que a GAIA já entregou.
 - `GET /lancamentos/proximos?limite=N` - lê o cache local, não refaz a
-  varredura.
+  varredura. Cada item: `nome`, `data`, `tipo_lancamento`, `appid`, `link`.
 - `GET`/`POST /lancamentos/ultima_checagem_diaria` - data da última
   varredura concluída (desde a 0.3.0 gravada pelo próprio HESTIA no fim da
   varredura; o `POST` continua existindo, mas a GAIA não usa mais).
@@ -252,6 +289,11 @@ e fazer tudo parecer "primeira vez".
   livre).
 - `GET /familia` - lista de família cadastrada (`{steamid64, accountid,
   nome}` cada).
+- `GET /status` - `{"lancamentos": {varrendo, ultima_varredura_concluida,
+  ultima_varredura, ultimo_erro, pendentes}, "atividade": {sessao_valida,
+  ultima_checagem, api_configurada, familia}}`.
+- `GET /avisos/historico?limite=N&categoria=lancamento|atividade` - avisos
+  já entregues, mais recentes primeiro.
 - `POST /familia` (`{"perfil": "url ou vanity/steamid"}`) - resolve e
   adiciona; devolve a entrada criada ou `{"erro": "..."}`.
 - `POST /familia/remover` (`{"accountid": "..."}`) - remove da lista.

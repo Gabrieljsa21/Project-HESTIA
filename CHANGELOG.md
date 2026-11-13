@@ -7,6 +7,25 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-13
+
+### Corrigido
+
+- **Atividade da Steam parou de chegar sem aviso nenhum.** O cookie de login expirou e a página passou a devolver a tela de login, mas a detecção de sessão procurava só o texto `g_steamID`, que a tela de login também traz (`g_steamID = false`). A sessão parecia válida e a GAIA nunca avisava. Agora só conta como logado quando `g_steamID` traz o número da conta.
+
+### Adicionado
+
+- **Atividade pela Web API oficial, sem login** (`hestia/core/atividade_api.py`): compras novas da família (biblioteca de cada pessoa por `GetOwnedGames`) e anúncios oficiais dos jogos jogados nas últimas duas semanas (`GetNewsForApp`). Usa só `STEAM_WEBAPI_KEY` e `STEAM_ID64`. A página logada continua sendo lida quando a sessão vale; o mesmo fato vindo das duas fontes é avisado uma vez.
+- **Histórico de avisos** (`hestia/historico.py`, `GET /avisos/historico`): lançamentos confirmados pela GAIA e novidades de atividade, os 300 mais recentes.
+- **`GET /status`**: última varredura da wishlist (horário, jogos, falhas, avisos), fila pendente, erro, última checagem de atividade e situação da sessão.
+- `GET /lancamentos/proximos` traz também `appid` e `link` da loja.
+- Testes da atividade (sessão, compras da família, chave comum entre as fontes, histórico): 19 casos no total.
+
+### Alterado
+
+- `GET /atividade/atual` usa o histórico da Web API quando a página logada não traz nada.
+- Exige a GAIA com a tela Steam para ver histórico e status; os endpoints antigos continuam iguais.
+
 ## [0.3.1] - 2026-11-13
 
 ### Corrigido
