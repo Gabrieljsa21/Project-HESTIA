@@ -45,7 +45,7 @@ O HESTIA tem login próprio na Steam: a GAIA mostra um QR code, você aprova no 
 
 ## Histórico e status
 
-Guarda os 300 avisos mais recentes (lançamentos entregues e novidades de atividade) e expõe o estado do serviço: última varredura da wishlist com jogos lidos, falhas e avisos, fila pendente, última checagem de atividade e situação da sessão. A GAIA mostra os dois na tela Steam do Painel.
+Guarda os 300 avisos mais recentes (lançamentos entregues e novidades de atividade, estas com o tipo para a GAIA filtrar) e expõe o estado do serviço: última varredura da wishlist com jogos lidos, falhas e avisos, fila pendente, última checagem de atividade e situação da sessão. A GAIA mostra os dois na tela Steam do Painel.
 
 ## Conquistas
 

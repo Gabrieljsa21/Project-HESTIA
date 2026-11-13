@@ -7,6 +7,12 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-13
+
+### Adicionado
+
+- **Tipo em todo evento novo de atividade e no histórico de avisos.** Os eventos que vêm da Web API (compras e anúncios) e cada entrada de `data/historico_avisos.json` agora carregam o `tipo`, igual aos da página. A GAIA usa isso para escolher o que vira aviso. Entradas antigas do histórico ficam sem tipo.
+
 ## [0.8.0] - 2026-11-13
 
 ### Adicionado

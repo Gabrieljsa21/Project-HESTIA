@@ -439,6 +439,8 @@ def _eventos_da_api():
         "texto": e["texto"],
         "familia": e["familia"],
         "link": e.get("link"),
+        "tipo": e["tipo"],
+        "autor": e["texto"].split(" comprou ")[0] if e["tipo"] == "compra" else None,
     } for e in brutos]
 
 
@@ -509,7 +511,7 @@ def obter_atividade_atual(limite=10):
             return eventos[:limite]
         # Sem página logada: o que a Web API já trouxe e foi avisado.
         return [
-            {"chave": "", "texto": h["texto"], "familia": h["familia"], "link": h.get("link")}
+            {"chave": "", "texto": h["texto"], "familia": h["familia"], "link": h.get("link"), "tipo": h.get("tipo")}
             for h in historico.listar(limite, categoria="atividade")
         ]
     except Exception as e:
