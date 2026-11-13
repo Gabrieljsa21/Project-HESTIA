@@ -6,15 +6,19 @@ expira sem aviso. Em 2026-11-13 ela estava devolvendo a tela de login havia
 semanas e o usuário não recebia atividade nenhuma. Esta fonte cobre, só com
 `STEAM_WEBAPI_KEY` e `STEAM_ID64`, o que mais importa ao usuário:
 
-- **compra da família**: biblioteca de cada pessoa de `familia.py`
+- **compras de amigos e família**: biblioteca de cada amigo
+  (`ISteamUser/GetFriendList`) e de cada pessoa de `familia.py`
   (`IPlayerService/GetOwnedGames`); appid novo desde a última checagem vira
-  "Fulano comprou X". Exige biblioteca pública da pessoa;
+  "Fulano comprou X", com destaque para a família. Exige biblioteca pública
+  da pessoa (36 de 42 amigos em 2026-11-13);
 - **anúncios dos jogos do usuário**: notícias oficiais
   (`ISteamNews/GetNewsForApp`, feed `steam_community_announcements`) dos
   jogos jogados nas últimas duas semanas.
 
-Amigos fora da família não entram: a lista de amigos do usuário é privada
-para a API (401). Para eles continua valendo a página logada.
+A lista de amigos só aparece para a API se estiver pública no perfil do
+usuário (era privada até 2026-11-13, resposta 401); sem ela, só a família
+entra. Primeiras partidas e conquistas de amigos continuam só na página
+logada.
 
 A primeira leitura de cada pessoa e de cada jogo só grava a linha de base."""
 import os
@@ -29,6 +33,10 @@ ARQUIVO_ESTADO = "data/atividade_api_estado.json"
 URL_JOGOS = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/"
 URL_RECENTES = "https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/"
 URL_NOTICIAS = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/"
+URL_AMIGOS = "https://api.steampowered.com/ISteamUser/GetFriendList/v1/"
+URL_RESUMOS = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/"
+# SteamID64 = accountid + este offset (mesmo valor de familia.py).
+_OFFSET_STEAMID64 = 76561197960265728
 FEED_ANUNCIOS = "steam_community_announcements"
 MAX_JOGOS_COM_NOTICIAS = 10
 NOTICIAS_POR_JOGO = 3
@@ -57,15 +65,48 @@ def _jogos_da_pessoa(steamid64):
     return {str(j["appid"]): j.get("name") or f"appid {j['appid']}" for j in jogos}
 
 
-def _compras_da_familia(estado):
+def _pessoas_acompanhadas():
+    """Família + amigos, sem repetição: [{steamid64, accountid, nome, familia}].
+    A lista de amigos só vem se estiver pública no perfil do usuário (401
+    quando privada); nesse caso fica só a família."""
+    pessoas = {}
+    for p in familia.listar_familia():
+        pessoas[p["steamid64"]] = {**p, "familia": True}
+    try:
+        amigos = _get(URL_AMIGOS, steamid=os.getenv("STEAM_ID64"), relationship="friend")
+        ids = [a["steamid"] for a in amigos.get("friendslist", {}).get("friends", [])]
+    except Exception:
+        ids = []  # lista de amigos privada ou API fora do ar
+    novos = [i for i in ids if i not in pessoas]
+    nomes = {}
+    for inicio in range(0, len(novos), 100):
+        try:
+            resumo = _get(URL_RESUMOS, steamids=",".join(novos[inicio:inicio + 100]))
+            nomes.update({j["steamid"]: j.get("personaname") for j in resumo.get("players", [])})
+        except Exception:
+            pass
+    for steamid64 in novos:
+        pessoas[steamid64] = {
+            "steamid64": steamid64,
+            "accountid": str(int(steamid64) - _OFFSET_STEAMID64),
+            "nome": nomes.get(steamid64),
+            "familia": False,
+        }
+    return list(pessoas.values())
+
+
+def _compras_dos_amigos(estado):
+    """Appid novo na biblioteca de alguém = compra (ou jogo grátis
+    resgatado). Desde 2026-11-13 (0.5.0) cobre todos os amigos, não só a
+    família: o usuário deixou a lista de amigos pública."""
     eventos = []
     bibliotecas = estado.setdefault("bibliotecas", {})
-    for pessoa in familia.listar_familia():
+    for pessoa in _pessoas_acompanhadas():
         steamid64 = pessoa["steamid64"]
         try:
             jogos = _jogos_da_pessoa(steamid64)
         except Exception as e:
-            print(f" [SISTEMA] Biblioteca de {pessoa.get('nome')} indisponível na API: {e}")
+            print(f" [SISTEMA] Biblioteca de {pessoa.get('nome') or steamid64} indisponível na API: {e}")
             continue
         if jogos is None:
             continue  # biblioteca privada
@@ -73,13 +114,14 @@ def _compras_da_familia(estado):
         bibliotecas[steamid64] = sorted(jogos)
         if anteriores is None:
             continue  # primeira leitura: linha de base
+        nome = pessoa.get("nome") or ("Alguém da família" if pessoa["familia"] else "Um amigo")
         for appid in sorted(set(jogos) - set(anteriores)):
             eventos.append({
                 "tipo": "compra",
                 "autor": pessoa["accountid"],
                 "alvo": jogos[appid],
-                "texto": f"{pessoa.get('nome') or 'Alguém da família'} comprou {jogos[appid]} na Steam.",
-                "familia": True,
+                "texto": f"{nome} comprou {jogos[appid]} na Steam.",
+                "familia": pessoa["familia"],
                 "link": f"https://store.steampowered.com/app/{appid}",
             })
     return eventos
@@ -140,6 +182,6 @@ def coletar_eventos():
         return []
     with _lock:
         estado = ler_json(ARQUIVO_ESTADO, {})
-        eventos = _compras_da_familia(estado) + _anuncios_dos_meus_jogos(estado)
+        eventos = _compras_dos_amigos(estado) + _anuncios_dos_meus_jogos(estado)
         gravar_json(ARQUIVO_ESTADO, estado)
     return eventos

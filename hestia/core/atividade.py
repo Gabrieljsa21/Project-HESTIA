@@ -337,7 +337,14 @@ def verificar_novidades_steam():
         except Exception as e:
             print(f" [SISTEMA] Página de atividade indisponível: {e}")
         eventos_pagina = _extrair_eventos(html) if html else []
-        eventos = eventos_pagina + _eventos_da_api()
+        eventos_api = _eventos_da_api()
+        eventos = eventos_pagina + eventos_api
+        # 🔥 Página voltando depois de um tempo sem login (2026-11-13, 0.5.0):
+        # tudo o que ela mostra dos últimos dias pareceria novo e iria de uma
+        # vez para o Discord. A primeira leitura depois da volta só entra nos
+        # "vistos"; da API continua avisando normalmente.
+        anterior = ler_json(ARQUIVO_ULTIMA_CHECAGEM, None)
+        pagina_voltou = bool(eventos_pagina) and anterior is not None and not anterior.get("eventos_pagina")
         gravar_json(ARQUIVO_ULTIMA_CHECAGEM, {
             "em": datetime.now().isoformat(timespec="seconds"),
             "eventos_pagina": len(eventos_pagina),
@@ -348,7 +355,8 @@ def verificar_novidades_steam():
             primeira_vez = not os.path.exists(ARQUIVO_VISTOS)
             vistos = _carregar_vistos()
             ja_vistos = set(vistos)
-            novos = [e for e in eventos if e["chave"] not in ja_vistos]
+            candidatos = eventos_api if pagina_voltou else eventos
+            novos = [e for e in candidatos if e["chave"] not in ja_vistos]
             # Chave já vista vai para o fim (mais recente): continua na lista
             # enquanto aparecer na página, em vez de envelhecer e ser cortada.
             atuais = [e["chave"] for e in eventos]
