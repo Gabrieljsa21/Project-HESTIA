@@ -1,28 +1,33 @@
 # TODO - Project HESTIA
 
-## Extração completa (2026-08-24)
+Só pendências. Item feito sai do arquivo e vai para o `CHANGELOG.md`.
 
-3 módulos (lançamentos/atividade/conquistas) totalmente migrados da GAIA,
-validados de ponta a ponta com dados reais (wishlist de ~230 itens,
-conquistas de um jogo real, busca de guia, webhook do Google Calendar).
-Ver `CHANGELOG.md`/`ARQUITETURA.md` pro detalhe completo. Nada bloqueado
-no momento - próximos itens são melhorias, não pendências da extração:
+Cada item tem **Prioridade** (Alta/Média/Baixa), **Complexidade** (Alta/Média/Baixa) e **Status**.
 
-- **Visão de longo prazo do HESTIA é mais ampla** (ver
-  `Project G.A.I.A/assistant/docs/ECOSSISTEMA_PROJETOS.md`) - biblioteca de
-  jogos completa, transição Early Access → lançamento completo, jogo que
-  virou grátis fora da wishlist, DLCs, tempo jogado, preços, atualizações
-  importantes. Nenhum desses tem código ainda - o estado atual é só o que
-  já existia como feature da GAIA antes da extração (wishlist/atividade/
-  conquistas).
-- **Sem interface própria (janela/bandeja)** - mesmo caso do MOIRAI, roda
-  sem UI nenhuma. Só faria sentido se um dia alguém quiser gerenciar Steam
-  sem a GAIA aberta - não é uma necessidade conhecida hoje.
-- **Data de lançamento pode errar por até 1 dia (limitação conhecida, não
-  bug)** - achado real 2026-08-26 (ver ARQUITETURA.md, "Limitação
-  conhecida"): a API oficial/sem chave da Steam só devolve uma STRING de
-  data, sem fuso horário nem timestamp preciso - a loja mostra a data já
-  convertida pro fuso do usuário via um widget que essa API não expõe.
-  Corrigir de verdade exigiria scraping do HTML da loja (foge do princípio
-  "só API oficial" já adotado aqui) - usuário decidiu manter como está por
-  ora, não implementar sem pedido novo.
+## Funcionalidades
+
+### Visão ampliada da Steam
+
+- **Prioridade:** Média
+- **Complexidade:** Alta
+- **Status:** 💡 Ideia
+
+Plano de longo prazo registrado em `Project G.A.I.A/assistant/docs/ECOSSISTEMA_PROJETOS.md`: biblioteca de jogos completa, jogo que virou grátis fora da wishlist, tempo jogado, preços e atualizações importantes. Hoje o HESTIA cobre só wishlist, atividade e conquistas.
+
+### Interface própria
+
+- **Prioridade:** Baixa
+- **Complexidade:** Média
+- **Status:** 💡 Ideia
+
+Janela ou ícone na bandeja para usar o HESTIA sem a GAIA aberta. Nenhuma necessidade conhecida hoje.
+
+## Decisões em espera
+
+### Data de lançamento pode ficar um dia antes
+
+- **Prioridade:** Baixa
+- **Complexidade:** Média
+- **Status:** ⏸ Aguardando decisão do usuário
+
+A API pública da Steam devolve só a data em texto, sem fuso; a loja mostra a data convertida para o fuso do usuário. Corrigir exige raspar o HTML da loja, o que o usuário decidiu não fazer em 2026-08-26 (ver `ARQUITETURA.md`, "Limitação conhecida"). Só mexer com pedido novo.

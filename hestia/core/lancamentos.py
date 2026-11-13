@@ -235,17 +235,21 @@ def verificar_lancamentos(steamid=None):
                 "agendado_calendario": agendado_calendario,
             }
         else:
-            if anterior.get("coming_soon") and not detalhes["coming_soon"]:
+            # 🔥 Cada transição é checada por conta própria (2026-11-12, HESTIA
+            # 0.3.1). Antes era uma cadeia `elif`: um jogo que lançava e virava
+            # Free to Play no mesmo dia só gerava o primeiro aviso.
+            lancou = anterior.get("coming_soon") and not detalhes["coming_soon"]
+            if lancou:
                 eventos.append(f"🎮 Hoje foi lançado {nome}, que está na sua lista de desejos da Steam!\n{link_steam}")
                 # 🔥 Lançou de vez - o evento de "data futura" não faz mais sentido no
                 # calendário (já não é mais coming_soon, então não caiu no if acima).
                 gaia_webhook.remover_evento_lancamento(appid)
                 agendado_calendario = False
-            elif not anterior.get("is_free") and detalhes["is_free"]:
+            if not anterior.get("is_free") and detalhes["is_free"]:
                 eventos.append(f"🎮 {nome} (da sua wishlist) agora é Free to Play!\n{link_steam}")
-            elif anterior.get("early_access") and not detalhes["early_access"] and not detalhes["coming_soon"]:
+            if not lancou and anterior.get("early_access") and not detalhes["early_access"] and not detalhes["coming_soon"]:
                 eventos.append(f"🎮 {nome} (da sua wishlist) saiu do Acesso Antecipado - versão 1.0 lançada!\n{link_steam}")
-            elif detalhes["coming_soon"] and detalhes["data"]:
+            if detalhes["coming_soon"] and detalhes["data"]:
                 dias_restantes = (detalhes["data"] - date.today()).days
                 # 🔥 Reseta as faixas já avisadas se a DATA mudou desde a última checagem
                 # (achado real 2026-08-26, "My Party Is Grinding" - jogo adiado, mas o
@@ -262,7 +266,17 @@ def verificar_lancamentos(steamid=None):
                 # próxima checagem mesmo sem nada ter mudado (bug real, confirmado num
                 # teste isolado - o mesmo lembrete repetia sem motivo).
                 cruzadas = [b for b in BRACKETS_LEMBRETE_DIAS if 0 <= dias_restantes <= b and b not in ja_notificado]
-                if cruzadas:
+                if dias_restantes < 0 and 0 not in ja_notificado:
+                    # 🔥 Dia do lançamento pulado (2026-11-12, HESTIA 0.3.1): a
+                    # varredura não rodou no dia exato e a Steam ainda mostra
+                    # "em breve". Sem isto, nenhuma faixa casava com dias
+                    # negativos e o lançamento passava sem aviso nenhum.
+                    eventos.append(
+                        f"🎮 {nome} (sua wishlist) tinha lançamento marcado para "
+                        f"{detalhes['data'].strftime('%d/%m')}.\n{link_steam}"
+                    )
+                    ja_notificado.append(0)
+                elif cruzadas:
                     if dias_restantes == 0:
                         eventos.append(f"🎮 {nome} (sua wishlist) lança HOJE!\n{link_steam}")
                     else:
