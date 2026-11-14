@@ -7,6 +7,12 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-14
+
+### Adicionado
+
+- **Capturas da Steam Cloud para a CLIO.** `GET /capturas/nuvem?pagina=N` lista as capturas da conta (50 por página, mais novas primeiro, com total), com jogo, nome original do arquivo no PC, tamanho, data de envio, visibilidade e a URL do original, que abre sem login e é idêntica byte a byte. `POST /capturas/nuvem/apagar` (`{"ids": [...]}`, até 50) apaga da Steam Cloud pelo mesmo formulário da página de capturas e confere uma a uma; não mexe nos arquivos do PC. Sem login responde 401, pedido inválido 400. A HESTIA só executa; quem compara, baixa e pede confirmação é a CLIO.
+
 ## [0.10.1] - 2026-11-14
 
 ### Corrigido
