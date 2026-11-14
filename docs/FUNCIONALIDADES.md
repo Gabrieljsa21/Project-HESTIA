@@ -41,7 +41,16 @@ Lista de pessoas cadastradas pelo link do perfil Steam. Eventos de atividade del
 
 ## Sessão da Steam
 
-O HESTIA tem login próprio na Steam: a GAIA mostra um QR code, você aprova no app da Steam do celular, e o login vale cerca de 200 dias, renovado sozinho a cada dia. Nenhuma senha passa pelo HESTIA, e os tokens ficam cifrados para a sua conta do Windows. Detecta quando a sessão cai (duas leituras seguidas da tela de login, reconhecida por `g_steamID = false`). Copiar o login do navegador ficou só como reserva, porque Edge, Chrome e Brave não deixam mais ler os cookies.
+O HESTIA tem login próprio na Steam (Community e loja): a GAIA mostra um QR code, você aprova no app da Steam do celular, e o login vale cerca de 200 dias, renovado sozinho a cada dia. Nenhuma senha passa pelo HESTIA, e os tokens ficam cifrados para a sua conta do Windows. Detecta quando a sessão cai (duas leituras seguidas da tela de login, reconhecida por `g_steamID = false`). Copiar o login do navegador ficou só como reserva, porque Edge, Chrome e Brave não deixam mais ler os cookies.
+
+## Jogos grátis
+
+A cada 3 horas, dentro da checagem de atividade, procura jogos pagos que estão de graça por tempo limitado e que você ainda não tem:
+
+- **Loja da Steam (100% de desconto):** o HESTIA adiciona o jogo à sua conta sozinho, pelo mesmo botão "Adicionar à conta" da loja, e confere se entrou. O aviso diz que o jogo já está na conta. Se não der (sessão caída, região, limite de tentativas), o aviso traz o link e o prazo da promoção. Desliga com `HESTIA_GRATIS_RESGATAR=0` no `.env`.
+- **Chaves de outros sites (GamerPower):** aviso com o link e o prazo. Essas não são resgatadas sozinhas, porque cada site pede login, tarefas ou captcha.
+
+O que você já tem fica de fora: na loja pela lista de posse da conta, e nas chaves pelo nome do jogo na sua biblioteca. Fins de semana gratuitos e jogos sempre gratuitos não entram. Os avisos saem com o tipo "gratis", e a GAIA mostra a lista atual na tela Steam.
 
 ## Histórico e status
 

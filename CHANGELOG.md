@@ -7,6 +7,13 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-14
+
+### Adicionado
+
+- **Jogos grátis por tempo limitado que você não tem.** A cada 3 horas o HESTIA procura na loja da Steam jogos com 100% de desconto e chaves Steam do GamerPower, tira o que já está na conta e avisa com o tipo `gratis`. Os da loja são adicionados à conta sozinhos (o mesmo "Adicionar à conta" do site) e conferidos; se não der, o aviso traz o link e o prazo. As chaves do GamerPower vão só com o link, porque cada site pede login e captcha. `HESTIA_GRATIS_RESGATAR=0` desliga o resgate. `GET /gratis` lista as ofertas atuais.
+- **Login na loja da Steam.** A renovação do login por QR também pega o token da loja (o da Community não vale lá) e `obter_cookie(loja=True)` o entrega.
+
 ## [0.9.0] - 2026-11-13
 
 ### Adicionado

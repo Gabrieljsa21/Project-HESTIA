@@ -300,6 +300,32 @@ O `refresh_token` não gira por esse fluxo e vence em cerca de 200 dias
 (o primeiro, de 2026-11-13, em 11/06/2027); aí é escanear de novo. A GAIA
 mostra a validade na aba Status da tela Steam.
 
+## Jogos grátis com resgate automático (0.10.0, 2026-11-14)
+
+`hestia/core/gratis.py`. Fontes: busca da loja com `maxprice=free&specials=1`
+(fica só o que tem `data-discount="100"`) e a API pública do GamerPower
+(`/api/giveaways?platform=steam&type=game`). Roda de dentro de
+`atividade._eventos_da_api`, no máximo a cada 3 horas (`INTERVALO_S`, com
+`consultado_em` em `data/gratis_estado.json`), e devolve eventos de tipo
+`gratis` no formato da Web API, então os "vistos", o histórico e o filtro
+"Avisar sobre" da GAIA valem igual. A primeira consulta já avisa: oferta
+grátis vale enquanto durar, não é passado.
+
+Resgate: o `subid` grátis sai de `api/appdetails` (sub com
+`price_in_cents_with_discount == 0`) ou de `AddFreeLicense(<subid>)` na
+página; o POST vai para `freelicense/addfreelicense/<subid>` com
+`ajax=true` e `sessionid` igual ao cookie, o mesmo que o botão "Adicionar à
+conta" faz (conferido no `main.js` da loja em 2026-11-14). Depois confere em
+`dynamicstore/userdata` (`rgOwnedApps`/`rgOwnedPackages`) se entrou, e tenta
+no máximo 3 vezes por sub. A posse para filtrar vem dessa mesma lista (993
+apps contra 447 jogos do `GetOwnedGames`, porque inclui licenças grátis).
+
+Token da loja: o `access_token` da Community tem `aud` `web:community` e a
+loja trata como deslogado. `_renovar_acesso` passa a chamar o `settoken` da
+loja também (vem no mesmo `transfer_info` do `finalizelogin`) e guarda
+`access_token_loja`; `obter_cookie(loja=True)` usa esse. Sorteios do
+GamerPower só são avisados: a chave sai de outro site, com login e captcha.
+
 ## Contrato HTTP (`hestia/api_bridge.py`, porta 8770)
 
 - `POST /lancamentos/varrer` - dispara a varredura da wishlist numa thread
@@ -317,6 +343,9 @@ mostra a validade na aba Status da tela Steam.
 - `GET /atividade/verificar` - novidades da página de atividade desde a
   última checagem.
 - `GET /atividade/atual?limite=N` - estado atual, sem alterar o "já visto".
+- `GET /gratis` - ofertas grátis da última consulta que ainda não estão na
+  conta (`itens` com origem, nome, link, prazo), `atualizado_em`,
+  `sessao_loja` e `resgate_automatico`.
 - `GET /atividade/recente?dias=N` - feed dos últimos `N` dias (até 7), um
   pedido por dia (`ajaxgetusernews`), com `dia`, `texto`, `familia`, `link`,
   `tipo` e `autor` (0.8.0; o tipo das linhas de rollup sai do texto via

@@ -84,20 +84,30 @@ def test_acesso_perto_de_vencer_e_renovado(monkeypatch):
     refresh, velho, novo = _jwt(time.time() + 10**7), _jwt(time.time() + 60), _jwt(time.time() + 86400)
     sessao_steam._salvar_tokens("76561198000000001", "conta", refresh, velho)
     chamadas = []
-    monkeypatch.setattr(sessao_steam, "_renovar_acesso", lambda r: chamadas.append(r) or novo)
+    loja = _jwt(time.time() + 86400 + 1)
+    monkeypatch.setattr(sessao_steam, "_renovar_acesso", lambda r: chamadas.append(r) or {"comunidade": novo, "loja": loja})
     assert sessao_steam.obter_cookie().endswith(novo)
     assert sessao_steam.obter_cookie().endswith(novo)  # já renovado: não chama de novo
+    assert sessao_steam.obter_cookie(loja=True).endswith(loja)  # veio junto na renovação
     assert chamadas == [refresh]
+
+
+def test_token_da_loja_sai_da_renovacao_quando_falta(monkeypatch):
+    comunidade, loja = _jwt(time.time() + 86400), _jwt(time.time() + 86400 + 5)
+    sessao_steam._salvar_tokens("76561198000000001", "conta", _jwt(time.time() + 10**7), comunidade)
+    monkeypatch.setattr(sessao_steam, "_renovar_acesso", lambda r: {"comunidade": comunidade, "loja": loja})
+    assert sessao_steam.obter_cookie(loja=True).endswith(loja)
+    assert sessao_steam.obter_cookie().endswith(comunidade)
 
 
 def test_renovacao_falha_usa_o_acesso_ate_vencer(monkeypatch):
     velho = _jwt(time.time() + 60)
     sessao_steam._salvar_tokens("76561198000000001", "conta", _jwt(time.time() + 10**7), velho)
-    monkeypatch.setattr(sessao_steam, "_renovar_acesso", lambda r: None)
+    monkeypatch.setattr(sessao_steam, "_renovar_acesso", lambda r: {})
     assert sessao_steam.obter_cookie().endswith(velho)
 
 
 def test_acesso_vencido_sem_renovacao_devolve_none(monkeypatch):
     sessao_steam._salvar_tokens("76561198000000001", "conta", _jwt(time.time() + 10**7), _jwt(time.time() - 10))
-    monkeypatch.setattr(sessao_steam, "_renovar_acesso", lambda r: None)
+    monkeypatch.setattr(sessao_steam, "_renovar_acesso", lambda r: {})
     assert sessao_steam.obter_cookie() is None

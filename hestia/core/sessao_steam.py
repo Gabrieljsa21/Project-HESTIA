@@ -70,14 +70,17 @@ def _expiracao_jwt(token):
         return 0
 
 
-def _salvar_tokens(steamid, conta, refresh_token, access_token):
-    gravar_json(ARQUIVO, {
+def _salvar_tokens(steamid, conta, refresh_token, access_token, access_token_loja=None):
+    dados = {
         "steamid": steamid,
         "conta": conta,
         "refresh_token": _proteger(refresh_token),
         "access_token": _proteger(access_token),
         "refresh_expira": _expiracao_jwt(refresh_token),
-    })
+    }
+    if access_token_loja:
+        dados["access_token_loja"] = _proteger(access_token_loja)
+    gravar_json(ARQUIVO, dados)
 
 
 def _steamid_do_token(token):
@@ -170,53 +173,68 @@ def desconectar():
         gravar_json(ARQUIVO, {})
 
 
+DOMINIOS = {"comunidade": "steamcommunity.com", "loja": "store.steampowered.com"}
+
+
 def _renovar_acesso(refresh_token):
-    """Novo `access_token` pelo fluxo de login web da Steam, o mesmo que o
+    """Novos `access_token` pelo fluxo de login web da Steam, o mesmo que o
     navegador usa depois do QR: `jwt/finalizelogin` com o `refresh_token`
-    como `nonce` e o `settoken` da Community, que devolve o cookie
-    `steamLoginSecure` novo. `GenerateAccessTokenForApp` recusa token de
-    navegador (eresult 15, AccessDenied; testado em 2026-11-13)."""
+    como `nonce` e o `settoken` de cada domínio, que devolve o cookie
+    `steamLoginSecure` daquele domínio. Cada token só vale no próprio domínio
+    (`aud` web:community ou web:store; o da Community na loja aparece como
+    deslogado, testado em 2026-11-14). `GenerateAccessTokenForApp` recusa
+    token de navegador (eresult 15, AccessDenied; testado em 2026-11-13).
+    Devolve {"comunidade": token, "loja": token}, só com os que vieram."""
     sessao = requests.Session()
     resp = sessao.post(URL_FINALIZAR, data={
         "nonce": refresh_token, "sessionid": secrets.token_hex(12),
         "redirect_uri": "https://steamcommunity.com/login/home/?goto=",
     }, headers={"Origin": "https://steamcommunity.com", "Referer": "https://steamcommunity.com/"}, timeout=20)
     dados = resp.json()
-    destino = next((t for t in dados.get("transfer_info", []) if "steamcommunity.com" in t.get("url", "")), None)
-    if not destino:
-        return None
-    sessao.post(destino["url"], data={**destino.get("params", {}), "steamID": dados.get("steamID")}, timeout=20)
-    cookie = sessao.cookies.get("steamLoginSecure", domain="steamcommunity.com")
-    if not cookie:
-        return None
-    return unquote(cookie).split("||", 1)[1]
+    tokens = {}
+    for nome, dominio in DOMINIOS.items():
+        destino = next((t for t in dados.get("transfer_info", []) if dominio in t.get("url", "")), None)
+        if not destino:
+            continue
+        sessao.post(destino["url"], data={**destino.get("params", {}), "steamID": dados.get("steamID")}, timeout=20)
+        cookie = sessao.cookies.get("steamLoginSecure", domain=dominio)
+        if cookie:
+            tokens[nome] = unquote(cookie).split("||", 1)[1]
+    return tokens
 
 
-def obter_cookie():
-    """Valor de `steamLoginSecure` do login por QR, renovando o acesso quando
-    falta menos de `MARGEM_RENOVACAO_S` para vencer. Se a renovação falhar, o
-    acesso atual vale até o fim; depois disso volta None e é preciso
-    escanear o QR de novo."""
+def obter_cookie(loja=False):
+    """Valor de `steamLoginSecure` do login por QR para a Community (padrão)
+    ou para a loja (`loja=True`, usado no resgate de jogos grátis), renovando
+    o acesso quando falta menos de `MARGEM_RENOVACAO_S` para vencer. Se a
+    renovação falhar, o acesso atual vale até o fim; depois disso volta None
+    e é preciso escanear o QR de novo."""
+    campo = "access_token_loja" if loja else "access_token"
     with _lock:
         dados = ler_json(ARQUIVO, None)
         if not dados or not dados.get("refresh_token"):
             return None
         try:
             refresh = _abrir(dados["refresh_token"])
-            access = _abrir(dados["access_token"])
+            atual = {"comunidade": _abrir(dados["access_token"])}
+            if dados.get("access_token_loja"):
+                atual["loja"] = _abrir(dados["access_token_loja"])
         except Exception as e:
             print(f" [SISTEMA] Login da Steam ilegível: {e}")
             return None
+        nome = "loja" if loja else "comunidade"
+        access = atual.get(nome, "")
         if _expiracao_jwt(access) - time.time() < MARGEM_RENOVACAO_S:
             try:
-                novo = _renovar_acesso(refresh)
+                novos = _renovar_acesso(refresh)
             except Exception as e:
-                novo = None
+                novos = {}
                 print(f" [SISTEMA] Falha ao renovar o login da Steam: {e}")
-            if novo:
-                access = novo
-                _salvar_tokens(dados["steamid"], dados.get("conta"), refresh, access)
+            if novos.get(nome):
+                atual.update(novos)
+                access = atual[nome]
+                _salvar_tokens(dados["steamid"], dados.get("conta"), refresh, atual["comunidade"], atual.get("loja"))
             elif _expiracao_jwt(access) <= time.time():
-                print(" [SISTEMA] Login da Steam vencido e sem renovação; escaneie o QR de novo.")
+                print(f" [SISTEMA] Login da Steam ({campo}) vencido e sem renovação; escaneie o QR de novo.")
                 return None
     return f"{dados['steamid']}%7C%7C{access}"
