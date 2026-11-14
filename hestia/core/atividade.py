@@ -348,17 +348,35 @@ def _extrair_eventos(html):
     # pode mudar). Ver hestia/core/familia.py.
     familia_ids = familia.accountids_familia()
 
+    # 🔥 Compra na página (2026-11-14, 0.10.1): a página voltou a mostrar
+    # "agora possui mais N jogos", com os nomes em `.blotter_gamepurchase_details`
+    # (fora do bloco do autor, onde o código antigo procurava e caía em "um
+    # jogo"). Quem a Web API já acompanha fica só com o aviso da API, que traz
+    # o nome certo; sem isto o usuário recebeu "comprou um jogo" e "comprou
+    # Green Hell" para a mesma compra.
+    acompanhados_api = atividade_api.accountids_com_biblioteca()
     for bloco in soup.select("div.blotter_gamepurchase"):
         autor_tag = bloco.select_one(".blotter_author_block a[data-miniprofile]")
-        autor = autor_tag.get_text(strip=True) if autor_tag else "alguém"
-        jogo_tag = bloco.select_one(".blotter_author_block a[href*='store.steampowered.com']")
-        jogo = jogo_tag.get_text(strip=True) if jogo_tag else "um jogo"
-        id_autor = autor_tag.get("data-miniprofile") if autor_tag else autor
+        id_autor = autor_tag.get("data-miniprofile") if autor_tag else None
+        if id_autor and id_autor in acompanhados_api:
+            continue
+        autor = (autor_tag.find(string=True, recursive=False) or "").strip() if autor_tag else ""
+        autor = autor or "Alguém"
+        jogos = [a for a in bloco.select(".blotter_gamepurchase_details a[href*='store.steampowered.com']") if a.get_text(strip=True)]
+        nomes = [a.get_text(strip=True) for a in jogos]
+        if not nomes:
+            lista = "um jogo"
+        elif len(nomes) == 1:
+            lista = nomes[0]
+        elif len(nomes) == 2:
+            lista = f"{nomes[0]} e {nomes[1]}"
+        else:
+            lista = f"{nomes[0]}, {nomes[1]} e mais {len(nomes) - 2}"
         eventos.append({
-            "chave": _chave("compra", id_autor, jogo),
-            "link": jogo_tag.get("href") if jogo_tag else None,
-            "texto": f"{autor} comprou {jogo} na Steam.",
-            "familia": id_autor in familia_ids,
+            "chave": _chave("compra", id_autor or autor, nomes[0] if nomes else "um jogo"),
+            "link": jogos[0].get("href") if jogos else None,
+            "texto": f"{autor} comprou {lista} na Steam.",
+            "familia": (id_autor or autor) in familia_ids,
             "tipo": "compra",
             "autor": autor,
         })

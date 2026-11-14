@@ -136,3 +136,32 @@ def test_tipo_pelo_texto():
     assert atividade._tipo_do_texto("Leo adicionou X à lista de desejos.") == "desejo"
     assert atividade._tipo_do_texto("Leo e Ana agora são amigos.") == "amizade"
     assert atividade._tipo_do_texto("Leo avaliou X.") == "outro"
+
+
+_COMPRA_NA_PAGINA = (
+    '<div class="blotter_gamepurchase"><div class="blotter_author_block">'
+    '<a data-miniprofile="7" href="x">Cupido <span class="nickname_block">(<span>Max</span>)</span></a>'
+    '<div> agora possui mais 2 jogos </div></div>'
+    '<div class="blotter_gamepurchase_details"><a href="https://store.steampowered.com/app/1/A">Green Hell</a> | '
+    '<a href="https://store.steampowered.com/app/2/B">Green Hell Official Soundtrack</a></div></div>'
+)
+
+
+def test_compra_na_pagina_traz_os_nomes(monkeypatch):
+    monkeypatch.setattr(familia, "accountids_familia", lambda: set())
+    monkeypatch.setattr(atividade_api, "accountids_com_biblioteca", lambda: set())
+    evento = atividade._extrair_eventos(_COMPRA_NA_PAGINA)[0]
+    assert evento["texto"] == "Cupido comprou Green Hell e Green Hell Official Soundtrack na Steam."
+    assert evento["chave"] == atividade._chave("compra", "7", "green hell")
+
+
+def test_compra_na_pagina_de_quem_a_api_acompanha_fica_so_com_a_api(monkeypatch):
+    monkeypatch.setattr(familia, "accountids_familia", lambda: set())
+    monkeypatch.setattr(atividade_api, "accountids_com_biblioteca", lambda: {"7"})
+    assert atividade._extrair_eventos(_COMPRA_NA_PAGINA) == []
+
+
+def test_accountid_vem_do_steamid64(monkeypatch):
+    from hestia.armazenamento import gravar_json
+    gravar_json(atividade_api.ARQUIVO_ESTADO, {"bibliotecas": {"76561198286514188": []}})
+    assert atividade_api.accountids_com_biblioteca() == {"326248460"}
