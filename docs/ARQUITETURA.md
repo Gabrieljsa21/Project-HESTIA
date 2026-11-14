@@ -300,6 +300,16 @@ O `refresh_token` não gira por esse fluxo e vence em cerca de 200 dias
 (o primeiro, de 2026-11-13, em 11/06/2027); aí é escanear de novo. A GAIA
 mostra a validade na aba Status da tela Steam.
 
+## Compra na página contra compra da API (0.10.1, 2026-11-14)
+
+A página voltou a mostrar `div.blotter_gamepurchase` ("agora possui mais N
+jogos"), com os nomes em `.blotter_gamepurchase_details` e o autor em
+`.blotter_author_block`. Compra de quem está em
+`atividade_api.accountids_com_biblioteca()` (steamid64 menos
+76561197960265728 = `data-miniprofile`) é descartada da página: a API já
+avisa, com o nome do jogo e chave `compra|accountid|nome`. Para os demais,
+um aviso por bloco, com até dois nomes e "mais N".
+
 ## Jogos grátis com resgate automático (0.10.0, 2026-11-14)
 
 `hestia/core/gratis.py`. Fontes: busca da loja com `maxprice=free&specials=1`

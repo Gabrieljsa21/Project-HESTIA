@@ -7,6 +7,12 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-14
+
+### Corrigido
+
+- **Mesma compra avisada duas vezes.** A página de atividade voltou a mostrar compras de amigos ("agora possui mais N jogos"), com os nomes num bloco separado do autor; o HESTIA procurava no lugar errado e avisava "comprou um jogo", e a Web API avisava a mesma compra com o nome ("comprou Green Hell"), com chave diferente. Agora a compra de quem a API já acompanha vem só da API, e para os outros a página traz os nomes ("comprou Green Hell e Green Hell Official Soundtrack").
+
 ## [0.10.0] - 2026-11-14
 
 ### Adicionado

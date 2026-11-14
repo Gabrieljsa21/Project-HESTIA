@@ -174,6 +174,23 @@ def _anuncios_dos_meus_jogos(estado):
     return eventos
 
 
+STEAMID64_BASE = 76561197960265728
+
+
+def accountids_com_biblioteca():
+    """accountids (como no `data-miniprofile` da página) de quem a API já
+    acompanha a biblioteca: a compra dessas pessoas vem daqui, com o nome
+    certo, e a página não precisa repetir."""
+    estado = ler_json(ARQUIVO_ESTADO, {})
+    ids = set()
+    for steamid64 in estado.get("bibliotecas", {}):
+        try:
+            ids.add(str(int(steamid64) - STEAMID64_BASE))
+        except ValueError:
+            continue
+    return ids
+
+
 def coletar_eventos():
     """Eventos novos desde a última chamada (só os da API). Cada evento traz
     `tipo`, `autor` e `alvo` para `atividade.py` montar a chave e evitar
