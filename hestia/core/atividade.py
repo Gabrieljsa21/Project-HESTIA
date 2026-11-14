@@ -38,7 +38,7 @@ import requests
 import browser_cookie3
 from bs4 import BeautifulSoup
 
-from hestia.core import familia, atividade_api, sessao_steam
+from hestia.core import familia, atividade_api, gratis, sessao_steam
 from hestia import historico
 from hestia.armazenamento import ler_json, gravar_json
 
@@ -433,7 +433,12 @@ def _eventos_da_api():
         brutos = atividade_api.coletar_eventos()
     except Exception as e:
         print(f" [SISTEMA] Erro na atividade pela Web API: {e}")
-        return []
+        brutos = []
+    # Jogos grátis (0.10.0) vão pelo mesmo caminho: viram aviso de tipo "gratis".
+    try:
+        brutos += gratis.coletar_eventos()
+    except Exception as e:
+        print(f" [SISTEMA] Erro na checagem de jogos grátis: {e}")
     return [{
         "chave": _chave(e["tipo"], e["autor"], e["alvo"]),
         "texto": e["texto"],

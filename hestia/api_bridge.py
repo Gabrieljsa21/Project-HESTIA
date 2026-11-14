@@ -16,7 +16,7 @@ import traceback
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from hestia.core import atividade, lancamentos, conquistas, familia, sessao_steam
+from hestia.core import atividade, gratis, lancamentos, conquistas, familia, sessao_steam
 from hestia import historico
 
 LOCAL_API_HOST = "127.0.0.1"
@@ -79,6 +79,8 @@ class _API(BaseHTTPRequestHandler):
         elif caminho == "/atividade/atual":
             limite = int((params.get("limite") or [10])[0])
             self._responder_json(atividade.obter_atividade_atual(limite))
+        elif caminho == "/gratis":
+            self._responder_json(gratis.listar())
         elif caminho == "/atividade/recente":
             dias = int((params.get("dias") or [3])[0])
             self._responder_json(atividade.obter_atividade_recente(dias))

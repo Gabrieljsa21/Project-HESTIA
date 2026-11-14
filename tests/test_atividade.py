@@ -4,7 +4,7 @@ duas fontes e histórico de avisos."""
 import pytest
 
 from hestia import historico
-from hestia.core import atividade, atividade_api, familia, lancamentos
+from hestia.core import atividade, atividade_api, familia, gratis, lancamentos
 
 
 @pytest.fixture(autouse=True)
@@ -12,6 +12,7 @@ def isolar(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("STEAM_WEBAPI_KEY", "chave")
     monkeypatch.setenv("STEAM_ID64", "76561197960265729")
+    monkeypatch.setattr(gratis, "coletar_eventos", lambda forcar=False: [])
 
 
 def test_tela_de_login_nao_conta_como_sessao_valida():
