@@ -300,6 +300,28 @@ O `refresh_token` não gira por esse fluxo e vence em cerca de 200 dias
 (o primeiro, de 2026-11-13, em 11/06/2027); aí é escanear de novo. A GAIA
 mostra a validade na aba Status da tela Steam.
 
+## Capturas da Steam Cloud (0.11.0, 2026-11-14)
+
+Divisão combinada com o usuário: a HESTIA é a única que fala com a conta da
+Steam, então só lista, entrega a URL e apaga; a CLIO é a cabeça (compara,
+baixa, galeria, confirmação) e chama a ponte direto, sem passar pela GAIA e
+sem segundo login. `hestia/core/capturas_nuvem.py`:
+
+- Lista: página `profiles/<steamid>/screenshots/?browsefilter=myfiles&
+  view=grid&sort=newestfirst&l=english` logada (ids em
+  `data-publishedfileid`, total em "Showing 1 - 50 of N"; às vezes volta
+  sem a grade, então tenta 3 vezes) e detalhes em
+  `IPublishedFileService/GetDetails` com a chave da Web API (`filename` =
+  `<appid>/screenshots/AAAAMMDDhhmmss_N.jpg`, o nome original no PC;
+  `file_url` do original, sem login). `GetUserFiles` volta vazio para
+  capturas, testado.
+- Apagar: POST `profiles/<steamid>/screenshotsaction` com `action=delete`,
+  `sessionid` igual ao cookie e `screenshots[<id>]=on`, o mesmo formulário
+  do modo de gerenciamento (`ConfirmBatchAction` em
+  `screenshot_functions_v2.js`), cujo aviso diz "This will delete N items
+  from the Steam Cloud". Confere depois no `GetDetails` (resultado diferente
+  de 1 = sumiu).
+
 ## Compra na página contra compra da API (0.10.1, 2026-11-14)
 
 A página voltou a mostrar `div.blotter_gamepurchase` ("agora possui mais N
@@ -353,6 +375,9 @@ GamerPower só são avisados: a chave sai de outro site, com login e captcha.
 - `GET /atividade/verificar` - novidades da página de atividade desde a
   última checagem.
 - `GET /atividade/atual?limite=N` - estado atual, sem alterar o "já visto".
+- `GET /capturas/nuvem?pagina=N` e `POST /capturas/nuvem/apagar`
+  (`{"ids": [...]}`, até 50) - capturas da Steam Cloud para a CLIO; 401
+  sem login, 400 com pedido inválido.
 - `GET /gratis` - ofertas grátis da última consulta que ainda não estão na
   conta (`itens` com origem, nome, link, prazo), `atualizado_em`,
   `sessao_loja` e `resgate_automatico`.

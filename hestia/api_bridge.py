@@ -16,7 +16,7 @@ import traceback
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from hestia.core import atividade, gratis, lancamentos, conquistas, familia, sessao_steam
+from hestia.core import atividade, capturas_nuvem, gratis, lancamentos, conquistas, familia, sessao_steam
 from hestia import historico
 
 LOCAL_API_HOST = "127.0.0.1"
@@ -32,12 +32,22 @@ def _ler_corpo_json(handler):
 
 
 class _API(BaseHTTPRequestHandler):
-    def _responder_json(self, dados):
+    def _responder_json(self, dados, status=200):
         corpo = json.dumps(dados).encode("utf-8")
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(corpo)
+
+    def _capturas(self, chamada):
+        """Capturas da nuvem (usadas pela CLIO): sem login vira 401 e pedido
+        inválido vira 400, com `erro` legível, em vez do 500 genérico."""
+        try:
+            self._responder_json(chamada())
+        except capturas_nuvem.SemSessao as e:
+            self._responder_json({"erro": str(e)}, status=401)
+        except ValueError as e:
+            self._responder_json({"erro": str(e)}, status=400)
 
     def _responder_ok(self):
         self.send_response(200)
@@ -79,6 +89,8 @@ class _API(BaseHTTPRequestHandler):
         elif caminho == "/atividade/atual":
             limite = int((params.get("limite") or [10])[0])
             self._responder_json(atividade.obter_atividade_atual(limite))
+        elif caminho == "/capturas/nuvem":
+            self._capturas(lambda: capturas_nuvem.listar(int((params.get("pagina") or [1])[0])))
         elif caminho == "/gratis":
             self._responder_json(gratis.listar())
         elif caminho == "/atividade/recente":
@@ -129,6 +141,9 @@ class _API(BaseHTTPRequestHandler):
             self._responder_ok()
         elif caminho == "/lancamentos/varrer":
             self._responder_json(lancamentos.iniciar_varredura())
+        elif caminho == "/capturas/nuvem/apagar":
+            ids = _ler_corpo_json(self).get("ids", [])
+            self._capturas(lambda: capturas_nuvem.apagar(ids))
         elif caminho == "/lancamentos/confirmar":
             self._responder_json(lancamentos.confirmar_eventos(_ler_corpo_json(self).get("ids", [])))
         elif caminho == "/sessao/login_qr":

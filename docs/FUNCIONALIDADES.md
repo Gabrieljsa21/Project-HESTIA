@@ -52,6 +52,10 @@ A cada 3 horas, dentro da checagem de atividade, procura jogos pagos que estão 
 
 O que você já tem fica de fora: na loja pela lista de posse da conta, e nas chaves pelo nome do jogo na sua biblioteca. Fins de semana gratuitos e jogos sempre gratuitos não entram. Os avisos saem com o tipo "gratis", e a GAIA mostra a lista atual na tela Steam.
 
+## Capturas na Steam Cloud
+
+Lista as capturas de tela da sua conta que estão na nuvem da Steam (1.669 em 2026-11-14) e apaga as que a CLIO pedir. A HESTIA não decide nada: quem compara com `E:\Fotos\Steam`, baixa e pede sua confirmação antes de apagar é a CLIO. Apagar tira só da nuvem; os arquivos do PC ficam.
+
 ## Histórico e status
 
 Guarda os 300 avisos mais recentes (lançamentos entregues e novidades de atividade, estas com o tipo para a GAIA filtrar) e expõe o estado do serviço: última varredura da wishlist com jogos lidos, falhas e avisos, fila pendente, última checagem de atividade e situação da sessão. A GAIA mostra os dois na tela Steam do Painel.
