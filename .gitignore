@@ -18,7 +18,6 @@ cache/
 data/*.json
 data/*.bak
 data/*.tmp
-logs/
 
 # Editores / SO
 .vscode/

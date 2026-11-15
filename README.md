@@ -51,6 +51,8 @@ O `.env.example` explica estas opções:
 
 Use `iniciar_hestia_oculto.vbs` para abrir sem terminal visível.
 
+O log fica em `%LOCALAPPDATA%\Ecossistema\HESTIA\Logs\`, um arquivo por dia (`AAAA-MM-DD.log`), guardado por 30 dias.
+
 Para rodar os testes:
 
 ```powershell

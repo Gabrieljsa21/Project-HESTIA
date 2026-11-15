@@ -220,8 +220,12 @@ e fazer tudo parecer "primeira vez".
 - **Cache de busca**: `search_ddg` guarda `{"resposta", "resultados"}` e
   aceita o formato antigo (só texto). O cache já era apagado a cada
   inicialização; o ganho é dentro de uma mesma execução.
-- **Logs**: `runtime_log.limpar_logs_antigos` apaga `logs/AAAA-MM-DD.log`
-  com mais de 30 dias ao iniciar.
+- **Logs** (0.12.0, padrão do ecossistema): `hestia/registro.py`, cópia do
+  `clio/registro.py`, grava em `%LOCALAPPDATA%\Ecossistema\HESTIA\Logs\AAAA-MM-DD.log`
+  no formato `AAAA-MM-DD hh:mm:ss,mmm NÍVEL módulo: mensagem` e apaga os
+  de mais de 30 dias ao iniciar. Com `pythonw`, `print`, stderr e exceções
+  não tratadas (inclusive de threads) também vão para o log. Substituiu o
+  `runtime_log.py`, que gravava em `logs/` dentro do repositório.
 - **Testes**: `tests/` com pytest. Rede e calendário são trocados por
   dublês; cada teste roda numa pasta temporária, já que os caminhos de
   `data/` são relativos à pasta atual.

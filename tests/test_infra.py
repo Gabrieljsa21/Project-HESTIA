@@ -5,7 +5,9 @@ import os
 
 import pytest
 
-from hestia import armazenamento, runtime_log
+import logging
+
+from hestia import armazenamento, registro
 from hestia.core import atividade
 from hestia.integrations import search_ddg
 
@@ -64,14 +66,29 @@ def test_cache_de_busca_devolve_resultados_estruturados(monkeypatch):
     assert segunda == primeira and segunda[1][0]["link"] == "https://x"
 
 
+def test_pasta_de_logs_no_localappdata(monkeypatch, tmp_path):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    assert registro.pasta_logs("HESTIA") == tmp_path / "Ecossistema" / "HESTIA" / "Logs"
+
+
 def test_limpeza_apaga_so_logs_antigos(tmp_path):
-    pasta = tmp_path / "logs"
-    pasta.mkdir()
-    hoje = datetime.date.today()
-    antigo = pasta / f"{(hoje - datetime.timedelta(days=31)).isoformat()}.log"
-    recente = pasta / f"{(hoje - datetime.timedelta(days=5)).isoformat()}.log"
-    outro = pasta / "manual.log"
-    for arquivo in (antigo, recente, outro):
-        arquivo.write_text("x")
-    assert runtime_log.limpar_logs_antigos(str(tmp_path)) == 1
-    assert not antigo.exists() and recente.exists() and outro.exists()
+    hoje = datetime.date(2026, 11, 14)
+    for nome in ("2026-10-01.log", "2026-11-01.log", "manual.log", "2026-13-99.log"):
+        (tmp_path / nome).write_text("x")
+    assert registro.limpar(tmp_path, dias=30, hoje=hoje) == 1
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["2026-11-01.log", "2026-13-99.log", "manual.log"]
+
+
+def test_log_no_arquivo_do_dia(tmp_path):
+    manipulador = registro.ArquivoDoDia(tmp_path)
+    manipulador.setFormatter(logging.Formatter(registro.FORMATO))
+    log = logging.getLogger("teste.registro")
+    log.addHandler(manipulador)
+    log.propagate = False
+    try:
+        log.warning("algo aconteceu")
+    finally:
+        log.removeHandler(manipulador)
+        manipulador.arquivo.close()
+    texto = (tmp_path / f"{datetime.date.today().isoformat()}.log").read_text(encoding="utf-8")
+    assert "WARNING teste.registro: algo aconteceu" in texto
