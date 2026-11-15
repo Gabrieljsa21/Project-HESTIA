@@ -7,6 +7,11 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-14
+
+### Corrigido
+- O log podia entrar num laço infinito e travar a HESTIA quando ela era iniciada pela GAIA: o console parecia um terminal, mas escrever nele falhava, e o erro voltava para o próprio log. Agora o log grava só no arquivo do dia, ignora falha de escrita e descarta a escrita no stderr feita pelo próprio log (mesma correção da CLIO).
+
 ## [0.12.0] - 2026-11-14
 
 ### Alterado

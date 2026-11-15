@@ -8,7 +8,7 @@ também vão para o log.
 
 Modelo de referência: copiar este arquivo como está em cada projeto
 (trocando só o nome passado a `configurar`), sem pacote compartilhado.
-Cópia do `clio/registro.py` (CLIO 0.18.0) na HESTIA 0.12.0.
+Cópia do `clio/registro.py` (correção do laço) na HESTIA 0.12.1.
 """
 
 import datetime
@@ -51,16 +51,28 @@ class ArquivoDoDia(logging.Handler):
 
 
 class _SaidaParaLog:
-    """`sys.stdout`/`sys.stderr` que viram linhas de log (o `print` não se perde)."""
+    """`sys.stdout`/`sys.stderr` que viram linhas de log (o `print` não se perde).
+
+    Trava de reentrada: se o próprio log falhar e o `logging` escrever o erro
+    no stderr, essa escrita é descartada em vez de virar outra linha de log
+    (sem a trava, a CLIO 0.18 entrou num laço infinito)."""
+
+    _dentro = threading.local()
 
     def __init__(self, nome: str, nivel: int):
         self.log = logging.getLogger(nome)
         self.nivel = nivel
 
     def write(self, texto: str) -> int:
-        for linha in texto.rstrip().splitlines():
-            if linha.strip():
-                self.log.log(self.nivel, linha.rstrip())
+        if getattr(self._dentro, "ativo", False):
+            return len(texto)
+        self._dentro.ativo = True
+        try:
+            for linha in texto.rstrip().splitlines():
+                if linha.strip():
+                    self.log.log(self.nivel, linha.rstrip())
+        finally:
+            self._dentro.ativo = False
         return len(texto)
 
     def flush(self) -> None:
@@ -97,11 +109,10 @@ def configurar(projeto: str, nivel: int = logging.INFO) -> Path:
     arquivo = ArquivoDoDia(pasta)
     arquivo.setFormatter(formato)
     raiz.addHandler(arquivo)
-    console = sys.__stderr__
-    if console is not None and console.isatty():   # rodando num terminal: mostra lá também
-        tela = logging.StreamHandler(console)
-        tela.setFormatter(formato)
-        raiz.addHandler(tela)
+    # Só o arquivo, sem console: iniciado pela GAIA (pythonw do uv), o processo
+    # parece ter um terminal (isatty verdadeiro), mas escrever nele dá
+    # "Função incorreta". Falha de escrita do log também não vira traceback.
+    logging.raiseExceptions = False
     logging.getLogger("httpx").setLevel(logging.WARNING)   # uma linha por requisição enche o log
     sys.stdout = _SaidaParaLog("print", logging.INFO)
     sys.stderr = _SaidaParaLog("stderr", logging.WARNING)
