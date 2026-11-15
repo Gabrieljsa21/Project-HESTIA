@@ -92,3 +92,26 @@ def test_log_no_arquivo_do_dia(tmp_path):
         manipulador.arquivo.close()
     texto = (tmp_path / f"{datetime.date.today().isoformat()}.log").read_text(encoding="utf-8")
     assert "WARNING teste.registro: algo aconteceu" in texto
+
+
+def test_falha_do_log_nao_vira_laco(monkeypatch):
+    """Se o log falhar ao escrever, o erro não pode voltar para o log."""
+    import sys
+    saida = registro._SaidaParaLog("teste.laco", logging.WARNING)
+    chamadas = []
+
+    class Quebrado(logging.Handler):
+        def emit(self, registro_):
+            chamadas.append(1)
+            sys.stderr.write("erro ao escrever\n")   # como o logging.handleError faz
+
+    log = logging.getLogger("teste.laco")
+    quebrado = Quebrado()
+    log.addHandler(quebrado)
+    log.propagate = False
+    monkeypatch.setattr(sys, "stderr", saida)
+    try:
+        saida.write("primeira linha\n")
+    finally:
+        log.removeHandler(quebrado)
+    assert chamadas == [1]
