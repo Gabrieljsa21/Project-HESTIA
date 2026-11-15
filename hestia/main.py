@@ -6,13 +6,14 @@ as 3 checagens (lançamentos 1x/dia, atividade a cada 20min, conquistas sob dema
 são todas disparadas pela GAIA (ela decide QUANDO checar e O QUE FALAR sobre isso,
 via Agendador Diário/`_monitorar_steam_loop`/tags `<STEAM>`/`<LANCAMENTOS>`/
 `<CONQUISTAS>`) - o HESTIA só responde HTTP quando perguntado."""
+import logging
 import os
 import socket
 import sys
 
 from dotenv import load_dotenv
 
-from hestia import runtime_log
+from hestia import registro
 
 PASTA_PROJETO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -32,6 +33,7 @@ from hestia.api_bridge import iniciar_servidor_api  # noqa: E402
 PORTA_INSTANCIA_UNICA = 8771
 
 _socket_instancia_unica = None
+log = logging.getLogger(__name__)
 
 
 def _garantir_instancia_unica():
@@ -40,19 +42,17 @@ def _garantir_instancia_unica():
     try:
         _socket_instancia_unica.bind(("127.0.0.1", PORTA_INSTANCIA_UNICA))
     except OSError:
-        print(
-            " [SISTEMA] Já existe uma instância do HESTIA rodando "
-            f"(porta {PORTA_INSTANCIA_UNICA} ocupada) - encerrando esta pra não rodar em duplicidade."
-        )
+        log.warning("Já existe uma instância do HESTIA rodando (porta %s ocupada); encerrando esta.",
+                    PORTA_INSTANCIA_UNICA)
         sys.exit(1)
 
 
 def main():
-    runtime_log.ativar(PASTA_PROJETO)
+    pasta_logs = registro.configurar("HESTIA")
     _garantir_instancia_unica()
     os.makedirs("data", exist_ok=True)
 
-    print(" [SISTEMA] HESTIA pronto - ponte HTTP na porta 8770 (sem loop próprio, GAIA decide quando checar).")
+    log.info("HESTIA pronto: ponte HTTP na porta 8770, log em %s.", pasta_logs)
     iniciar_servidor_api()  # bloqueia a thread principal
 
 

@@ -7,6 +7,11 @@ Histórico de alto nível do que muda no HESTIA, por versão. Ver
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-14
+
+### Alterado
+- Log no padrão do ecossistema: `%LOCALAPPDATA%\Ecossistema\HESTIA\Logs\AAAA-MM-DD.log`, fora do repositório, com uma linha por evento (`AAAA-MM-DD hh:mm:ss,mmm NÍVEL módulo: mensagem`) e 30 dias guardados. `hestia/registro.py` (cópia do modelo da CLIO) substitui o `runtime_log.py` e também registra exceções não tratadas de threads. Os logs antigos de `logs/` foram movidos para a pasta nova.
+
 ## [0.11.0] - 2026-11-14
 
 ### Adicionado

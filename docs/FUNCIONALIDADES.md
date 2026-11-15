@@ -70,4 +70,4 @@ Procura como destravar uma conquista, nesta ordem: guias da comunidade Steam, Po
 
 ## Manutenção
 
-Logs diários em `logs/`, apagados depois de 30 dias. Dados em `data/` gravados de forma atômica, com cópia `.bak` usada se o arquivo principal ficar ilegível.
+Logs diários em `%LOCALAPPDATA%\Ecossistema\HESTIA\Logs\`, apagados depois de 30 dias. Dados em `data/` gravados de forma atômica, com cópia `.bak` usada se o arquivo principal ficar ilegível.
